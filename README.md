@@ -23,7 +23,7 @@ This code is just commited for insight there is no installer for this service ye
 * Creates 3 shares (home, shared, public)
 * Joins Prism Element to Prism Central
 * Joings Prism Element and Prism Central to the AD Domain
-* Resets SSH passwords
+ * Resets SSH passwords
 * Sets up SSP projects in multitenant demo.
 * Installs CALM
 * Runs software updates, updating CALM to the latest version.
@@ -66,8 +66,8 @@ Using the full kit requires the installer.
 SMTP setup is not included in this version.
 
 Requirements:
-*This runs on Posh 5.1
-*This requires POSH-SSH to be installed
-*This requires the nutanix CMDlets to be installed.
-*Powershell remoting needs to be enabled on the local host
+* This runs on Posh 5.1
+* This requires POSH-SSH to be installed
+* This requires the nutanix CMDlets to be installed.
+* Powershell remoting needs to be enabled on the local host
 
