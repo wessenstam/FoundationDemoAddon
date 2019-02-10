@@ -3,6 +3,7 @@
 PowerShell based kit that deploys the entire Nutanix stack ontop of the normal installer.
 
 Purpose:
+
 This application installs ontop of a baremetal cluster after normal AOS foundation is done.
 It runs on hosted POC systems but also Baremetal.
 This code is just commited for insight there is no installer for this service yet.
