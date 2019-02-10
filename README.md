@@ -7,6 +7,9 @@ Purpose:
 This application installs ontop of a baremetal cluster after normal AOS foundation is done.
 It runs on hosted POC systems but also Baremetal.
 This code is just commited for insight there is no installer for this service yet.
+Feel free to take the code and use it for your own implementation. 
+
+Questions can be sent to Michell.Grauwmans@Nutanix.com
 
 * Creates Storage containers
 * Creates Network
