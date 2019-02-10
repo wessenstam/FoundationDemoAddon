@@ -1,4 +1,4 @@
-# FoundationDemoAddon
+ # FoundationDemoAddon
 PowerShell based kit that deploys the entire Nutanix stack ontop of the normal installer.
 
 Purpose:
@@ -6,29 +6,29 @@ This application installs ontop of a baremetal cluster after normal AOS foundati
 It runs on hosted POC systems but also Baremetal.
 This code is just commited for insight there is no installer for this service yet.
 
-*Creates Storage containers
-*Creates Network
-*Uploads required images
-*Installs Prism Central using REST (Latest auto version)
-*Sets up 2 domain controllers, creates a domain using sysprep
-*Sets DNS servers in the entire stack to the created domain controllers
-*Sets NTP for the entire stack
-*Sets ISCSI IP for Prism Element
-*Maps AD Domain Admins to the Prism X Admin role.
-*Creates a Domain Admin account for the requesting user
-*Creates dummy AD content, accounts, users and groups for multitenant setup.
-*Registers Prism Element
-*Installs Files in Prism Element (Latest auto version)
-*Creates 3 shares (home, shared, public)
-*Joins Prism Element to Prism Central
-*Joings Prism Element and Prism Central to the AD Domain
-*Resets SSH passwords
-*Sets up SSP projects in multitenant demo.
-*Installs CALM
-*Runs software updates, updating CALM to the latest version.
-*Installs Flow
-*Installs XPlay Demo
-*Installs Workshop demo
+* Creates Storage containers
+* Creates Network
+* Uploads required images
+* Installs Prism Central using REST (Latest auto version)
+* Sets up 2 domain controllers, creates a domain using sysprep
+* Sets DNS servers in the entire stack to the created domain controllers
+* Sets NTP for the entire stack
+* Sets ISCSI IP for Prism Element
+* Maps AD Domain Admins to the Prism X Admin role.
+* Creates a Domain Admin account for the requesting user
+* Creates dummy AD content, accounts, users and groups for multitenant setup.
+* Registers Prism Element
+* Installs Files in Prism Element (Latest auto version)
+* Creates 3 shares (home, shared, public)
+* Joins Prism Element to Prism Central
+* Joings Prism Element and Prism Central to the AD Domain
+* Resets SSH passwords
+* Sets up SSP projects in multitenant demo.
+* Installs CALM
+* Runs software updates, updating CALM to the latest version.
+* Installs Flow
+* Installs XPlay Demo
+* Installs Workshop demo
 
 Description:
 This kit is intented to run as a service, hence installer is not available yet.
