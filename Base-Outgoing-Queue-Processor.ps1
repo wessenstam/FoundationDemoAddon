@@ -103,6 +103,8 @@ do {
     start-transcript -path $logfile
     ### Sysprep
     $ServerSysprepfile = LIB-Server-SysprepXML -Password $datavar.PEPass
+    $data.syspreppassword = $datavar.PEPass
+
     ### ISO Dirs
     $ISOurlData = LIB-Config-ISOurlData -region $datavar.Location
     ### Full Data Set
