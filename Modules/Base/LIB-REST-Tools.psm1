@@ -120,6 +120,438 @@ Function REST-Create-UserGroup {
   Return $task
 } 
 
+
+Function REST-Query-Cluster {
+  Param (
+    [string] $ClusterPC_IP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $targetIP,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Building UserGroup Query JSON"
+
+  $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/clusters/list"
+  $Payload= @{
+    kind="cluster"
+    offset=0
+    length=999
+  } 
+
+  $JSON = $Payload | convertto-json
+  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  $filter = $task.entities | where {$_.spec.resources.network.external_ip -eq $targetIP}
+
+  Return $filter
+} 
+
+Function REST-Query-Projects {
+  Param (
+    [string] $ClusterPC_IP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Building Subnet Query JSON"
+
+  $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/projects/list"
+  $Payload= @{
+    kind="project"
+    offset=0
+    length=999
+  } 
+
+  $JSON = $Payload | convertto-json
+  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  Return $task
+} 
+
+
+
+Function REST-Update-Project {
+  Param (
+    [string] $ClusterPC_IP,
+    [string] $clpassword,
+    [string] $clusername,
+    [array]  $Subnet,
+    [array]  $consumer,
+    [array]  $projectadmin,
+    [array]  $cluster,
+    [array]  $admingroup,
+    [array]  $usergroup,    
+    [array]  $Project,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+  write-log -message "Building Project Update JSON"
+
+  $UserGroupURL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/projects_internal/$($project.metadata.uuid)"
+  $json = @"
+
+{
+  "spec": {
+    "access_control_policy_list": [{
+        "acp": {
+          "name": "$($acpadmin.spec.name)",
+          "resources": {
+            "role_reference": {
+              "kind": "role",
+              "uuid": "$($ProjectAdmin.metadata.uuid)"
+            },
+            "user_reference_list": [
+
+            ],
+            "filter_list": {
+              "context_list": [{
+                  "entity_filter_expression_list": [{
+                    "operator": "IN",
+                    "left_hand_side": {
+                      "entity_type": "all"
+                    },
+                    "right_hand_side": {
+                      "collection": "ALL"
+                    }
+                  }],
+                  "scope_filter_expression_list": [{
+                    "operator": "IN",
+                    "left_hand_side": "PROJECT",
+                    "right_hand_side": {
+                      "uuid_list": [
+                        "$($project.metadata.uuid)"
+                      ]
+                    }
+                  }]
+                },
+                {
+                  "entity_filter_expression_list": [{
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "category"
+                      },
+                      "right_hand_side": {
+                        "collection": "ALL"
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "cluster"
+                      },
+                      "right_hand_side": {
+                        "uuid_list": [
+                          "$($cluster.metadata.uuid)"
+                        ]
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "directory_service"
+                      },
+                      "right_hand_side": {
+                        "collection": "ALL"
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "environment"
+                      },
+                      "right_hand_side": {
+                        "collection": "SELF_OWNED"
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "image"
+                      },
+                      "right_hand_side": {
+                        "collection": "ALL"
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "marketplace_item"
+                      },
+                      "right_hand_side": {
+                        "collection": "SELF_OWNED"
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "project"
+                      },
+                      "right_hand_side": {
+                        "uuid_list": [
+                          "$($project.metadata.uuid)"
+                        ]
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "role"
+                      },
+                      "right_hand_side": {
+                        "collection": "ALL"
+                      }
+                    }
+                  ],
+                  "scope_filter_expression_list": [
+
+                  ]
+                },
+                {
+                  "entity_filter_expression_list": [{
+                    "operator": "IN",
+                    "left_hand_side": {
+                      "entity_type": "user"
+                    },
+                    "right_hand_side": {
+                      "collection": "ALL"
+                    }
+                  }],
+                  "scope_filter_expression_list": [{
+                    "operator": "IN",
+                    "left_hand_side": "PROJECT",
+                    "right_hand_side": {
+                      "uuid_list": [
+                        "$($project.metadata.uuid)"
+                      ]
+                    }
+                  }]
+                },
+                {
+                  "entity_filter_expression_list": [{
+                    "operator": "IN",
+                    "left_hand_side": {
+                      "entity_type": "user_group"
+                    },
+                    "right_hand_side": {
+                      "collection": "ALL"
+                    }
+                  }],
+                  "scope_filter_expression_list": [{
+                    "operator": "IN",
+                    "left_hand_side": "PROJECT",
+                    "right_hand_side": {
+                      "uuid_list": [
+                        "$($project.metadata.uuid)"
+                      ]
+                    }
+                  }]
+                }
+              ]
+            },
+            "user_group_reference_list": [{
+              "kind": "user_group",
+              "name": "$($admingroup.status.resources.directory_service_user_group.distinguished_name)",
+              "uuid": "$($admingroup.metadata.uuid)"
+            }]
+          },
+          "description": "prismui-desc-a8527482f0b1123"
+        },
+                  "operation": "ADD",
+        "metadata": {
+          "kind": "access_control_policy"
+        }
+      },
+      {
+        "acp": {
+          "name": "$($acpuser.spec.name)",
+          "resources": {
+            "role_reference": {
+              "kind": "role",
+              "uuid": "$($Consumer.metadata.uuid)"
+            },
+            "user_reference_list": [
+
+            ],
+            "filter_list": {
+              "context_list": [{
+                  "entity_filter_expression_list": [{
+                    "operator": "IN",
+                    "left_hand_side": {
+                      "entity_type": "all"
+                    },
+                    "right_hand_side": {
+                      "collection": "ALL"
+                    }
+                  }],
+                  "scope_filter_expression_list": [{
+                    "operator": "IN",
+                    "left_hand_side": "PROJECT",
+                    "right_hand_side": {
+                      "uuid_list": [
+                        "$($project.metadata.uuid)"
+                      ]
+                    }
+                  }]
+                },
+                {
+                  "entity_filter_expression_list": [{
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "category"
+                      },
+                      "right_hand_side": {
+                        "collection": "ALL"
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "cluster"
+                      },
+                      "right_hand_side": {
+                        "uuid_list": [
+                          "$($cluster.metadata.uuid)"
+                        ]
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "image"
+                      },
+                      "right_hand_side": {
+                        "collection": "ALL"
+                      }
+                    },
+                    {
+                      "operator": "IN",
+                      "left_hand_side": {
+                        "entity_type": "marketplace_item"
+                      },
+                      "right_hand_side": {
+                        "collection": "SELF_OWNED"
+                      }
+                    }
+                  ],
+                  "scope_filter_expression_list": [
+
+                  ]
+                }
+              ]
+            },
+            "user_group_reference_list": [{
+              "kind": "user_group",
+              "name": "$($usergroup.status.resources.directory_service_user_group.distinguished_name)",
+              "uuid": "$($usergroup.metadata.uuid)"
+            }]
+          },
+          "description": "prismui-desc-9838f052a82f"
+        },
+        "operation": "UPDATE",
+        "metadata": {
+          "kind": "access_control_policy",
+          "uuid": "$($ACPUser.metadata.uuid)"
+        }
+      }
+    ],
+    "project_detail": {
+      "name": "$($project.spec.name)", 
+      "resources": {
+        "resource_domain": {
+          "resources": [{
+              "limit": 1717986918400,
+              "resource_type": "STORAGE"
+            },
+            {
+              "limit": 40,
+              "resource_type": "VCPUS"
+            },
+            {
+              "limit": 85899345920,
+              "resource_type": "MEMORY"
+            }
+          ]
+        },
+        "account_reference_list": [
+
+        ],
+        "environment_reference_list": [
+
+        ],
+        "user_reference_list": [
+
+        ],
+        "external_user_group_reference_list": [{
+            "kind": "user_group",
+            "name": "$($admingroup.status.resources.directory_service_user_group.distinguished_name)",
+            "uuid": "$($admingroup.metadata.uuid)"
+          },
+          {
+            "kind": "user_group",
+            "name": "$($usergroup.status.resources.directory_service_user_group.distinguished_name)",
+            "uuid": "$($usergroup.metadata.uuid)"
+          }
+        ],
+        "subnet_reference_list": [{
+          "kind": "subnet",
+          "name": "$($subnet.spec.name)",
+          "uuid": "$($subnet.metadata.uuid)"
+        }]
+      },
+      "description": "$($project.spec.description)"
+    },
+    "user_list": [
+
+    ],
+    "user_group_list": [
+
+    ]
+  },
+  "api_version": "3.1",
+  "metadata": {
+    "kind": "project",
+    "uuid": "$($project.metadata.uuid)",
+    "project_reference": {
+      "kind": "project",
+      "name": "$($project.spec.name)", 
+      "uuid": "$($project.metadata.uuid)"
+    },
+    "spec_version": $($project.metadata.spec_version),
+    "owner_reference": {
+      "kind": "user",
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "name": "admin"
+    },
+    "categories": {
+
+    }
+  }
+}
+
+"@
+
+  $task = Invoke-RestMethod -Uri $UserGroupURL -method "put" -body $json -ContentType 'application/json' -headers $headers;
+  Return $task
+} 
+
+
 Function REST-Create-Project {
   Param (
     [string] $ClusterPC_IP,
@@ -212,8 +644,78 @@ Function REST-Create-Project {
 } 
 
 
-Export-ModuleMember *
 
+
+
+Function REST-Create-SSP-RoleMap {
+  Param (
+    [string] $ClusterPC_IP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $Customer,
+    [array]  $role,
+    [array] $group,
+    [array] $project,
+    [string] $GroupType,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+  write-log -message "Building ACP Create JSON"
+
+  $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/access_control_policies"
+  $json = @"
+{
+  "spec": {
+    "name": "ACP $($Customer) for $($GroupType)",
+    "resources": {
+      "role_reference": {
+        "kind": "role",
+        "uuid": "$($consumer.metadata.uuid)"
+      },
+      "user_reference_list": [],
+      "filter_list": {
+        "context_list": [{
+          "entity_filter_expression_list": [{
+            "operator": "IN",
+            "left_hand_side": {
+              "entity_type": "ALL"
+            },
+            "right_hand_side": {
+              "collection": "ALL"
+            }
+          }],
+          "scope_filter_expression_list": [{
+              "operator": "IN",
+              "right_hand_side": {
+                "uuid_list": ["$($project.metadata.uuid)"]
+              },
+              "left_hand_side": "PROJECT"
+            }
+
+          ]
+        }]
+      },
+      "user_group_reference_list": [{
+        "kind": "user_group",
+        "uuid": "$($group.metadata.uuid)"
+      }]
+    },
+    "description": "ACP $($Customer) for $($GroupType)"
+  },
+  "metadata": {
+    "kind": "access_control_policy"
+  }
+}
+"@
+
+  $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  Return $task
+} 
 
 
 Function REST-Query-Role-List {

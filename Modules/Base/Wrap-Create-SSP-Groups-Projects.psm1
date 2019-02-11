@@ -1,12 +1,14 @@
-Function Wrap-Create-SSP-Groups-Projects{
+Function Wrap-Install-XPlay-IIS-Demo{
    param (
     $datafixed,
     $datavar
    ) 
-  $Customers = "Customer-A","Customer-B","Customer-C","Customer-D","Customer-E","Customer-F";
-  $grouptypes = "user-accounts-group","admin-accounts-group"
+ 
+   
+ 
   $subnet = REST-Query-Subnet -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -networkname $datafixed.nw1name -debug $datavar.debug
-  
+  $cluster = REST-Query-Clusters -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -targetIP $datafixed.PCClusterIP
+
   foreach ($customer in $customers){
     
     write-log -message "Creating Admin Group for $customer"
@@ -34,14 +36,22 @@ Function Wrap-Create-SSP-Groups-Projects{
       $usergroup = $result.entities | where {$_.spec.resources.directory_service_user_group.distinguished_name -match $customer -and $_.spec.resources.directory_service_user_group.distinguished_name -match "user-accounts-group"}
     }
     write-log -message "Creating Project for $customer"
-  
-    $project = REST-Create-Project -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -UserGroupName $usergroup.metadata.name -UserGroupUUID $usergroup.metadata.uuid -clusername $datavar.peadmin -customer $customer -AdminGroupName $admingroup.metadata.name -AdminGroupUUID $admingroup.metadata.uuid -SubnetName $subnet.spec.name -subnetuuid $subnet.metadata.uuid 
+    try {
+      $project = REST-Create-Project -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -UserGroupName $usergroup.metadata.name -UserGroupUUID $usergroup.metadata.uuid -clusername $datavar.peadmin -customer $customer -AdminGroupName $admingroup.metadata.name -AdminGroupUUID $admingroup.metadata.uuid -SubnetName $subnet.spec.name -subnetuuid $subnet.metadata.uuid 
+    } catch {
 
-    write-log -message "Project already exists for $customer" -sev "WARN"  
+      write-log -message "Project already exists for $customer" -sev "WARN" 
+
+    }
+
+    write-log -message "Updating Project with ACP for $customer"
+    $consumer = REST-Query-Role-List -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -rolename "Consumer"
+    $ProjectAdmin = REST-Query-Role-List -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -rolename "Project Admin"
+    $result = REST-Update-Project -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -usergroup $usergroup -admingroup $admingroup -consumer $consumer -ProjectAdmin $projectadmin -project $project -cluster $cluster -subnet $subnet
+
 
   }
 
-  write-log -message "Updating Consumer Group Mappings"
 
 }
 Export-ModuleMember *
