@@ -21,6 +21,7 @@ Questions can be sent to Michell.Grauwmans@Nutanix.com
 * Maps AD Domain Admins to the Prism X Admin role.
 * Creates a Domain Admin account for the requesting user
 * Creates dummy AD content, accounts, users and groups for multitenant setup.
+
 * Registers Prism Element
 * Installs Files in Prism Element (Latest auto version)
 * Creates 3 shares (home, shared, public)
@@ -67,6 +68,10 @@ This commit is just to store the code.
 Using the full kit requires the installer.
 
 SMTP setup is not included in this version.
+
+Switch Setup is pending
+
+Slack Integration
 
 Requirements:
 * This runs on Posh 5.1
