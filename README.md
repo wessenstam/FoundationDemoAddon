@@ -1,4 +1,3 @@
-
 # FoundationDemoAddon
 PowerShell based kit that deploys the entire Nutanix stack ontop of the normal installer.
 
@@ -12,7 +11,7 @@ Feel free to take the code and use it for your own implementation.
 Questions can be sent to Michell.Grauwmans@Nutanix.com
 
 * Creates Storage containers
-* Creates Network
+* Creates 2 Networks
 * Uploads required images
 * Installs Prism Central using REST (Latest auto version)
 * Sets up 2 domain controllers, creates a domain using sysprep
