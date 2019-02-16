@@ -67,44 +67,44 @@ Function Get-IncommingueueItem{
     $Params = $body | select -first 15
     foreach ($line in $params){
       if ($line -match "^Debug:[0-9]"){
-        $debug = $line -replace("^Debug:([0-9]).*", $1)
+        $debug = $line -replace("^Debug:([0-9]).*", '$1')
       } else {
         $debug = 1
       }
       if ($line -match "^pcmode:[0-9]"){
-        $pcmode = $line -replace("^pcmode:([0-9]).*", $1)
+        $pcmode = $line -replace("^pcmode:([0-9]).*", '$1')
       } else {
         $pcmode = 3
       }
       if ($line -match "^queue:[0-9]"){
-        $queue = $line -replace("^queue:([0-9]).*", $1)
+        $queue = $line -replace("^queue:([0-9]).*", '$1')
       } 
       if ($line -match "^karbon:[0-9]"){
-        $InstallKarbon = $line -replace("^karbon:([0-9]).*", $1)
+        $InstallKarbon = $line -replace("^karbon:([0-9]).*", '$1')
       }
       if ($line -match "^era:[0-9]"){
-        $InstallEra = $line -replace("^era:([0-9]).*", $1)
+        $InstallEra = $line -replace("^era:([0-9]).*", '$1')
       }
       if ($line -match "^exchange:[0-9]"){
-        $DemoExchange = $line -replace("^exchange:([0-9]).*", $1)
+        $DemoExchange = $line -replace("^exchange:([0-9]).*", '$1')
       }
       if ($line -match "^files:[0-9]"){
-        $InstallFiles = $line -replace("^files:([0-9]).*", $1)
+        $InstallFiles = $line -replace("^files:([0-9]).*", '$1')
       }
       if ($line -match "^flow:[0-9]"){
-        $EnableFlow = $line -replace("^flow:([0-9]).*", $1)
+        $EnableFlow = $line -replace("^flow:([0-9]).*", '$1')
       }
       if ($line -match "^ssp:[0-9]"){
-        $SetupSSP = $line -replace("^ssp:([0-9]).*", $1)
+        $SetupSSP = $line -replace("^ssp:([0-9]).*", '$1')
       }
       if ($line -match "^iis:[0-9]"){
-        $DemoIISXPlay = $lin -replace("^iis:([0-9]).*", $1)
+        $DemoIISXPlay = $lin -replace("^iis:([0-9]).*", '$1')
       }
       if ($line -match "^xd:[0-9]"){
-        $DemoXenDeskT = $line -replace("^xd:([0-9]).*", $1)
+        $DemoXenDeskT = $line -replace("^xd:([0-9]).*", '$1')
       }
       if ($line -match "^lab:[0-9]"){
-        $DemoLab = $line -replace("^lab:([0-9]).*", $1)
+        $DemoLab = $line -replace("^lab:([0-9]).*", '$1')
       }
       if ($line -match "^pcversion:"){
         $DemoLab = $line.split(":")[1];

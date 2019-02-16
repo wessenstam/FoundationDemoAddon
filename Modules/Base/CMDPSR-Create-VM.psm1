@@ -52,11 +52,11 @@ Function CMDPSR-Create-VM {
     ##### This module assumes DHCP for the created VM. Once it reads the DHCP IP, it will connect using PowerShell
     ##### Once connected over PSR the IP stack will be changed to its final fixed IP.
   
-    if ($debug -ge 2){;
+
       $VM = Get-NTNXVM |where {$_.vmname -eq $VMname};
       if ($vm){;
   
-        write-log -message "You are in Debug mode and did not clean up after last attempt."
+        write-log -message "You did not clean up after last attempt."
         write-log -message "Cleaning up for you..., are you like my author?.."
   
         $vm.vmid | Remove-NTNXVirtualMachine
@@ -65,7 +65,7 @@ Function CMDPSR-Create-VM {
           $vm.vmid | Remove-NTNXVirtualMachine -ea:0
         }
       };
-    };
+
   
     write-log -message "Starting Network Setup";
   

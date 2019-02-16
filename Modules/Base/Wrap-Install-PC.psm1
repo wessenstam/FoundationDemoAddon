@@ -1,12 +1,13 @@
 function Wrap-Install-PC {
   param(
     $datafixed,
-    $datavar
+    $datavar,
+    $stage
   )
   $data = $datafixed
   $hide = LIB-Connect-PSNutanix -ClusterName $datavar.PEClusterIP -NutanixClusterUsername $datavar.PEAdmin -NutanixClusterPassword $datavar.PEPass
   $pcvm = Get-NTNXVM | where {$_.vmname -eq $data.PCNode1Name}
-  if ($pcvm){
+  if ($pcvm -and $stage -ne 1){
 
     write-log -message "Prism Central is already installed or running."
     write-log -message "Sleeping 6 minutes"
@@ -108,7 +109,7 @@ function Wrap-Install-PC {
 
     }
 
-  } else {;
+  } else {
 
     $status = REST-Install-PC -DisksContainerName $data.DisksContainerName -AOSVersion $datavar.AOSVersion -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -ClusterPE_IP $datavar.PEClusterIP -PCClusterIP $data.PCClusterIP -InfraSubnetmask $datavar.InfraSubnetmask -InfraGateway $datavar.InfraGateway -DNSServer $datavar.DNSServer -PC1_Name $data.PCNode1Name -PC2_Name $data.PCNode2Name -PC3_Name $data.PCNode3Name -PC1_IP $data.PCNode1IP -PC2_IP $data.PCNode2IP -PC3_IP $data.PCNode3IP -Networkname $data.Nw1Name -PCVersion $($datavar.PCVersion) -PCmode $datavar.PCmode -debug $datavar.debug   
 

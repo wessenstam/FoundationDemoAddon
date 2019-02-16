@@ -46,7 +46,8 @@ Function CMD-Upload-ISOImages {
     };
 
     $countrunning = (GET-NTNXTASK | where {$_.operationtype -match "ImageCreate" -and $_.progressstatus -match "running|queued"}).count
-    if ($countrunning -le 2){
+    $countfailed  = (GET-NTNXTASK | where {$_.operationtype -match "ImageCreate" -and $_.progressstatus -match "failed"}).count
+    if ($countrunning -le 3 -or $countfailed -ge 1){
 
       write-log -message "Pushing DC image first"
       $name = $dcimage

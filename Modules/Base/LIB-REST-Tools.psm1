@@ -136,7 +136,7 @@ Function REST-Query-Cluster {
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
 
-  write-log -message "Building UserGroup Query JSON"
+  write-log -message "Building Cluster Query JSON"
 
   $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/clusters/list"
   $Payload= @{
@@ -147,7 +147,7 @@ Function REST-Query-Cluster {
 
   $JSON = $Payload | convertto-json
   $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
-  $filter = $task.entities | where {$_.spec.resources.network.external_ip -eq $targetIP}
+  $filter = $task.entities | where {$_.spec.resources.network.external_ip -eq $targetIP -or $_.spec.resources.network.external_ip -eq $null}
 
   Return $filter
 } 
@@ -160,13 +160,11 @@ Function REST-Query-Projects {
     [string] $debug
   )
 
-  write-log -message "Debug level is $debug";
-  write-log -message "Building Credential object"
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
 
-  write-log -message "Building Subnet Query JSON"
+  write-log -message "Executing Project List Query"
 
   $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/projects/list"
   $Payload= @{
@@ -177,6 +175,9 @@ Function REST-Query-Projects {
 
   $JSON = $Payload | convertto-json
   $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  
+  write-log -message "We found $($task.entities.count) items."
+
   Return $task
 } 
 
@@ -191,19 +192,19 @@ Function REST-Update-Project {
     [array]  $consumer,
     [array]  $projectadmin,
     [array]  $cluster,
+    [string] $customer,    
     [array]  $admingroup,
     [array]  $usergroup,    
     [array]  $Project,
+    [int] $Projectspec,
     [string] $debug
   )
 
-  write-log -message "Debug level is $debug";
-  write-log -message "Building Credential object"
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
-  write-log -message "Building Project Update JSON"
-
+  write-log -message "Executing Project UpdateN"
+  [int]$spec 
   $UserGroupURL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/projects_internal/$($project.metadata.uuid)"
   $json = @"
 
@@ -211,7 +212,7 @@ Function REST-Update-Project {
   "spec": {
     "access_control_policy_list": [{
         "acp": {
-          "name": "$($acpadmin.spec.name)",
+          "name": "ACP PAdmin for $customer",
           "resources": {
             "role_reference": {
               "kind": "role",
@@ -380,7 +381,7 @@ Function REST-Update-Project {
       },
       {
         "acp": {
-          "name": "$($acpuser.spec.name)",
+          "name": "ACP PAdmin for $customer",
           "resources": {
             "role_reference": {
               "kind": "role",
@@ -464,10 +465,9 @@ Function REST-Update-Project {
           },
           "description": "prismui-desc-9838f052a82f"
         },
-        "operation": "UPDATE",
+        "operation": "ADD",
         "metadata": {
-          "kind": "access_control_policy",
-          "uuid": "$($ACPUser.metadata.uuid)"
+          "kind": "access_control_policy"
         }
       }
     ],
@@ -533,7 +533,7 @@ Function REST-Update-Project {
       "name": "$($project.spec.name)", 
       "uuid": "$($project.metadata.uuid)"
     },
-    "spec_version": $($project.metadata.spec_version),
+    "spec_version": $($Projectspec),
     "owner_reference": {
       "kind": "user",
       "uuid": "00000000-0000-0000-0000-000000000000",
@@ -546,8 +546,52 @@ Function REST-Update-Project {
 }
 
 "@
+  $countretry = 0
+  do {
+    $countretry ++
+    try{
+      $task = Invoke-RestMethod -Uri $UserGroupURL -method "put" -body $json -ContentType 'application/json' -headers $headers;
+      $RESTSuccess = 1
+    } catch {
+      sleep 20
+      write-log -message "Retry REST $countretry"
+    }
+  } until ($RESTSuccess -eq 1 -or $countretry -ge 5)
 
-  $task = Invoke-RestMethod -Uri $UserGroupURL -method "put" -body $json -ContentType 'application/json' -headers $headers;
+  if ($RESTSuccess -eq 1){
+    write-log -message "Project Update Success"
+  } else {
+    write-log -message "Project Update Failed" 
+  }
+  Return $task
+} 
+
+Function REST-Get-ACPs {
+  Param (
+    [string] $ClusterPC_IP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $debug
+  )
+
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Executing ACPs List"
+
+  $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/access_control_policies/list"
+  $Payload= @{
+    kind="access_control_policy"
+    offset=0
+    length=250
+  } 
+
+  $JSON = $Payload | convertto-json
+  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+
+  write-log -message "We found $($task.entities.count) items."
+
   Return $task
 } 
 
@@ -568,13 +612,11 @@ Function REST-Create-Project {
     [string] $debug
   )
 
-  write-log -message "Debug level is $debug";
-  write-log -message "Building Credential object"
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
   $domainparts = $domainname.split(".")
-  write-log -message "Building Project Create JSON"
+  write-log -message "Executing Project Create"
 
   $UserGroupURL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/projects"
   $json = @"
@@ -641,13 +683,14 @@ Function REST-Create-Project {
 
   $task = Invoke-RestMethod -Uri $UserGroupURL -method "post" -body $json -ContentType 'application/json' -headers $headers;
   Return $task
+
 } 
 
 
 
 
 
-Function REST-Create-SSP-RoleMap {
+Function REST-Create-ACP-RoleMap {
   Param (
     [string] $ClusterPC_IP,
     [string] $clpassword,
@@ -660,12 +703,10 @@ Function REST-Create-SSP-RoleMap {
     [string] $debug
   )
 
-  write-log -message "Debug level is $debug";
-  write-log -message "Building Credential object"
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
-  write-log -message "Building ACP Create JSON"
+  write-log -message "Executing ACP Create"
 
   $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/access_control_policies"
   $json = @"
@@ -675,7 +716,7 @@ Function REST-Create-SSP-RoleMap {
     "resources": {
       "role_reference": {
         "kind": "role",
-        "uuid": "$($consumer.metadata.uuid)"
+        "uuid": "$($role.metadata.uuid)"
       },
       "user_reference_list": [],
       "filter_list": {
@@ -727,13 +768,11 @@ Function REST-Query-Role-List {
     [string] $debug
   )
 
-  write-log -message "Debug level is $debug";
-  write-log -message "Building Credential object"
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
 
-  write-log -message "Getting Role UUID"
+  write-log -message "Executing Role UUID list"
 
   $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/roles/list"
     $Payload= @{
@@ -744,6 +783,9 @@ Function REST-Query-Role-List {
 
   $JSON = $Payload | convertto-json
   $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+
+  write-log -message "We found $($task.entities.count) items, filtering."
+
   $result = $task.entities | where {$_.spec.name -eq $rolename}
   Return $result
 } 
@@ -757,8 +799,6 @@ Function REST-Query-Role-Object {
     [string] $debug
   )
 
-  write-log -message "Debug level is $debug";
-  write-log -message "Building Credential object"
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
@@ -783,8 +823,8 @@ Function REST-Create-Role-Object {
     [string] $debug
   )
 
-  write-log -message "Debug level is $debug";
-  write-log -message "Building Credential object"
+  write-log -message "This function is not used yet."
+
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
@@ -830,8 +870,8 @@ Function REST-Set-SMTP-Server-Px {
     [string] $debug
   )
 
-  write-log -message "Debug level is $debug";
-  write-log -message "Building Credential object"
+
+  write-log -message "We are still implementing this"
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }

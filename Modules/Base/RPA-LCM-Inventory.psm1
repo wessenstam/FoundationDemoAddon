@@ -59,7 +59,11 @@ Function RPA-LCM-Inventory {
       $var = $doc.IHTMLDocument3_getElementsByTagName("Input")[2].outerhtml
     } catch {    
     }
-    if (($var -notmatch "username" -and $ie.document.IHTMLDocument2_body.outerhtml -notmatch "Manage Dashboards|OK, got it") -or $ie.documenT.title -notMATCH "Nutanix|Prism Central" ){
+    while($ie.Busy){;
+      Sleep -m 100;
+    };
+    sleep $IEDelay;    
+    if (($var -notmatch "username" -AND $ie.document.IHTMLDocument2_body.outerhtml -notmatch "Manage Dashboards|OK, got it|Available Updates|Loading") -AND $ie.documenT.title -notMATCH "Nutanix|Prism Central"  ){
       $var = $null
       while($ie.Busy){;
         Sleep -m 100;
@@ -76,13 +80,13 @@ Function RPA-LCM-Inventory {
     $count1++
     sleep $IEDelay;
     sleep $IEDelay;
-  } until ((($var -match "username" -or $ie.document.IHTMLDocument2_body.outerhtml -match "Manage Dashboards|OK, got it") -AND $ie.documenT.title -MATCH "Nutanix|Prism Central") -or $count1 -ge 52 )  
+  } until ((($var -match "username" -or $ie.document.IHTMLDocument2_body.outerhtml -match "Manage Dashboards|OK, got it|Available Updates|Loading") -AND $ie.documenT.title -MATCH "Nutanix|Prism Central") -or $count1 -ge 52 )  
   if ($count1 -ge 52){
 
     write-log -message "We failed loading the PC page after 26 minutes"
 
   }
-  if ($ie.document.IHTMLDocument2_body.outerhtml -match "Manage Dashboards|OK, got it"){
+  if ($ie.document.IHTMLDocument2_body.outerhtml -match "Manage Dashboards|OK, got it" -or $ie.document.IHTMLDocument2_body.outerhtml -match "Available Updates" ){
     if ($debug -ge 1){;
 
       write-log -message "We are already logged in"
@@ -150,51 +154,75 @@ Function RPA-LCM-Inventory {
     Sleep -m 100;
   };
   sleep $IEDelay;
+  $countwaitinventory = 0
 
-  write-log -message "Auto updating LCM";
+    try {
+  
+      write-log -message "Auto updating LCM";
+   
+      ($doc.IHTMLDocument3_getElementById("lcm-auto-update-enabled")).checked = $true
+      while($ie.Busy){;
+        Sleep -m 100;
+      };
+      sleep $IEDelay;
+  
+      write-log -message "Submit for completion";
 
-  ($doc.IHTMLDocument3_getElementById("lcm-auto-update-enabled")).checked = $true
-  while($ie.Busy){;
-    Sleep -m 100;
-  };
-  sleep $IEDelay;
+      ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "OK"}).click()
+      while($ie.Busy){;
+        Sleep -m 100;
+      };
+    } catch {
+  
+        write-log -message "Not my first time";
+  
+    }
+  do { 
+    $countwaitinventory++ 
+    sleep 60
+    $ie.navigate($requestUri);
+    $updates = $ie.document.IHTMLDocument2_body.innerhtml | Where { $_ -match "Available Updates" } 
+  } until ($countwaitinventory -ge 6 -or $updates -match "Available Updates");
 
-  write-log -message "Submit for completion";
-
-  ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "OK"}).click()
-  while($ie.Busy){;
-    Sleep -m 100;
-  };
-  do {;
-    $countsleep++;
-    sleep 110
-
-    write-log -message "Waiting for LCM Inventory $countsleep out of 6";
-
-  } until ($countsleep -ge 6);
+  if ($updates -match "Available Updates"){
+    write-log -message "LCM Inventory done.";
+  }
 
   write-log -message "Executing Prism Central LCM Updates";
 
-  ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "Update All"}).click()
-  while($ie.Busy){;
-    Sleep -m 100;
-  };
 
-  try {
-    $nrofupdates = ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "Apply.*"}).textcontent
-    $nrofupdates = $nrofupdates.split(" ")[1]
+  do{
+    $countupdates++
+    try {
 
-    write-log -message "We found $nrofupdates";
-    write-log -message "Executing All Updates";
+      ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "Update All"}).click()
+      while($ie.Busy){;
+        Sleep -m 100;
+      };
+      
+      sleep 20
+      $nrofupdates = ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "Apply.*"}).textcontent
+      $nrofupdates = $nrofupdates.split(" ")[1]
 
-    ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "Apply.*"}).click()
+      write-log -message "We found $nrofupdates";
+      write-log -message "Executing All Updates";
 
-  } catch {
+      $avail = "success"
+     ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "Apply.*"}).click()
 
-    write-log -message "There are no updates available.";
+    } catch {
+      while($ie.Busy){;
+        Sleep -m 100;
+      };
+      $ie.quit()
+      $ie = new-object -ComObject "InternetExplorer.Application";
+      $ie.navigate($requestUri);
+      sleep 20
+
+      write-log -message "There are no updates available.";
   
-  }
-
+    }
+  } until ($countupdates -ge 6 -or $avail -eq "Success" )
   if ($debug -ge 1){
     write-log -message "Were done here.";
     write-host "Stopping at $(get-date) ";

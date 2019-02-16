@@ -14,7 +14,7 @@ Function SSH-Networking-Pe {
     [string] $DC2IP,
     [string] $nw2Subnet,
     [string] $nw2gateway,
-    [string] $ne2name,
+    [string] $nw2name,
     [string] $nw2vlan,
     [string] $debug
   )
@@ -40,14 +40,17 @@ Function SSH-Networking-Pe {
       $Delete = Invoke-SSHCommand -SSHSession $session -command "/usr/local/nutanix/bin/acli -y net.delete Rx-Automation-Network" -EnsureConnection
 
       write-log -message "Checking Networks";
-      
+
+      sleep 10
       $Existing = Invoke-SSHCommand -SSHSession $session -command "/usr/local/nutanix/bin/acli net.list" -EnsureConnection
 
-      if ($Existing.output -match $nw1name){
+      if ($Existing.output -match "Rx-Automation-Network"){
 
-        write-log -message "Network 1 exists";
+        write-log -message "Old Network exists...." -sev "WARN" ;
 
         $nw1completed = $true
+
+      } elseif ($Existing.output -match $nw1name){
 
       } else {
 
@@ -87,7 +90,7 @@ Function SSH-Networking-Pe {
         write-log -message "Network 2 Does not exist, and needs creating.";
         write-log -message "Calculating data.";
 
-        $prefix = Convert-IpAddressToMaskLength $nw21Subnet
+        $prefix = Convert-IpAddressToMaskLength $nw2Subnet
         $ipconfig = "$($nw2gateway)/$($prefix)"
         $lastIP = Get-LastAddress -IPAddress $nw2dhcpstart -SubnetMask $nw2Subnet
 
@@ -97,7 +100,7 @@ Function SSH-Networking-Pe {
         write-log -message "Last IP will be $lastIP"
         write-log -message "Netbios Domain is $netbios"
 
-        $result = Invoke-SSHCommand -SSHSession $session -command "/usr/local/nutanix/bin/acli net.create $nw1name vlan=$($nw2vlan) ip_config=$($ipconfig)" -EnsureConnection
+        $result = Invoke-SSHCommand -SSHSession $session -command "/usr/local/nutanix/bin/acli net.create $nw2name vlan=$($nw2vlan) ip_config=$($ipconfig)" -EnsureConnection
         $result = Invoke-SSHCommand -SSHSession $session -command "/usr/local/nutanix/bin/acli net.update_dhcp_dns $nw2name servers=$($DC1IP),$($DC2ip) domains=$($netbios)" -EnsureConnection
         $result = Invoke-SSHCommand -SSHSession $session -command "/usr/local/nutanix/bin/acli net.add_dhcp_pool $nw2name start=$($nw2dhcpstart) end=$($lastIP)"
 

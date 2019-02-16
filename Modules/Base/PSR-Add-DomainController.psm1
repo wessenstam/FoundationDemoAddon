@@ -33,28 +33,22 @@ Function PSR-Add-DomainController {
       
         write-log -message "$IP is being added to domain $Domainname..."
       
-        Add-Computer -ComputerName $IP -Domain $Domainname -Restart -Localcredential $LocalCreds -credential $DomainCreds
-        while (Test-Connection -ComputerName $IP -Quiet -Count 1) {
-      
+        try {
+          Add-Computer -ComputerName $IP -Domain $Domainname -Restart -Localcredential $LocalCreds -credential $DomainCreds 
+        } catch {
+          sleep 60
+          Add-Computer -ComputerName $IP -Domain $Domainname -Restart -Localcredential $LocalCreds -credential $DomainCreds -ea:0
+        }
+        while (Test-Connection -ComputerName $IP -Quiet -Count 1 -or $countrestart -le 30) {
+          
           write-log -message "Machine is restarting"
-      
+
+          $countrestart++
           Start-Sleep -Seconds 2
           }
       
-          while (-not (Test-Connection -ComputerName $IP -Quiet -Count 1)) {
-            Start-Sleep -Seconds 2
-      
-            write-log -message "$IP rebooted and is back!"
-      
-          }
-          
           write-log -message "$IP was added to domain $Domain..."
           sleep 20
-          
-          $connect = invoke-command -computername $ip -credential $DomainCreds {
-            (Get-WmiObject -Class Win32_ComputerSystem).PartOfDomain
-          } -ea:0
-
        }
 
     } catch {
@@ -115,7 +109,7 @@ Function PSR-Add-DomainController {
     $connect = invoke-command -computername $IP -credential $DomainCreds { 
       try {
         Install-ADDSDomainController -DomainName $args[0] -SafeModeAdministratorPassword $Args[1] -force -credential $args[2] -NoRebootOnCompletion;
-        shutdown -r -t 10
+        shutdown -r -t 30
       } catch {
         "ERROR"
       }

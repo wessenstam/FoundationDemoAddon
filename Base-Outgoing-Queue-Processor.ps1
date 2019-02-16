@@ -103,12 +103,14 @@ do {
     start-transcript -path $logfile
     ### Sysprep
     $ServerSysprepfile = LIB-Server-SysprepXML -Password $datavar.PEPass
-    $data.syspreppassword = $datavar.PEPass
+
+    
 
     ### ISO Dirs
     $ISOurlData = LIB-Config-ISOurlData -region $datavar.Location
     ### Full Data Set
     $data = LIB-Config-DetailedDataSet -ClusterPE_IP $datavar.PEClusterIP -pocname $datavar.POCname -debug $datavar.debug -Sendername $datavar.Sendername
+    $data.syspreppassword = $datavar.PEPass
 
     write-log -message "Working with dynamic dataset:" -sev "CHAPTER"
 
@@ -213,7 +215,7 @@ do {
    
       write-log -message "Running Prism Central Installer wrapper for preinstall" -sev "CHAPTER"
 
-      Wrap-Install-PC -datafixed $data -datavar $datavar
+      Wrap-Install-PC -datafixed $data -datavar $datavar -stage "1"
 
       #### After PC install we have to wait for the DC image.
 
@@ -276,6 +278,10 @@ do {
         }
       }
 
+      write-log -message "Setting up Calm" -sev "CHAPTER"
+
+      REST-Enable-Calm -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+
       write-log -message "Setting up RoleMapping for Prism Element" -sev "CHAPTER"
 
       SSh-RoleMapping-Px -PxClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -domainname $data.domainname -debug $datavar.debug
@@ -283,18 +289,14 @@ do {
       write-log -message "Setting up RoleMapping for Prism Central" -sev "CHAPTER"
 
       SSh-RoleMapping-Px -PxClusterIP $data.PCClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -domainname $data.domainname -debug $datavar.debug
-
-      write-log -message "Setting up Calm" -sev "CHAPTER"
-
-      REST-Enable-Calm -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
-
-      write-log -message "Running Full LCM Prism Central Updates (RPA)" -sev "CHAPTER"
-
-      RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
       
       write-log -message "Importing Images into Prism Central" -sev "CHAPTER"
 
       REST-Image-Import-PC -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+
+      write-log -message "Running Full LCM Prism Central Updates (RPA)" -sev "CHAPTER"
+
+      RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
 
       if ($datavar.EnableFlow -eq 1){
 
@@ -357,6 +359,12 @@ do {
         write-log -message "Not implemented"    
       
       }
+
+      write-log -message "Checking uploaded ISO Images" -sev "CHAPTER"
+      
+      $STATUS = CMD-Upload-ISOImages -ISOurlData $ISOurlData -debug $datavar.debug -peadmin $datavar.PEAdmin -pepass $datavar.PEPass -PEClusterIP $datavar.PEClusterIP -ContainerName $data.ImagesContainerName -dcimage $data.DC_ImageName
+      Lib-Check-Thread -status $status.result -stage "Uploading ISO Images" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
+
       LIB-Send-Confirmation -reciever $datavar.SenderEMail -datagen $data -datavar $datavar -mode "end" -debug $datavar.debug -logfile $logfile
   
       write-log -message "Done" -sev "CHAPTER"
