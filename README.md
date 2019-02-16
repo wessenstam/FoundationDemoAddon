@@ -61,17 +61,12 @@ See modules dir for all functions and modules created.
 There are more then 30 available. 
 
 Todo:
-There is no installer yet.
-
-This commit is just to store the code. 
-
-Using the full kit requires the installer.
-
-SMTP setup is not included in this version.
-
-Switch Setup is pending
-
-Slack Integration
+* There is no installer yet.
+* This commit is just to store the code. 
+* Using the full kit requires the installer.
+* SMTP setup is not included in this version.
+* Switch Setup is pending
+* Slack Integration
 
 Requirements:
 * This runs on Posh 5.1
