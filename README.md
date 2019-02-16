@@ -20,6 +20,7 @@ Questions can be sent to Michell.Grauwmans@Nutanix.com
 * Sets ISCSI IP for Prism Element
 * Maps AD Domain Admins to the Prism X Admin role.
 * Creates a Domain Admin account for the requesting user
+
 * Creates dummy AD content, accounts, users and groups for multitenant setup.
 
 * Registers Prism Element
@@ -67,6 +68,11 @@ Todo:
 * SMTP setup is not included in this version.
 * Switch Setup is pending
 * Slack Integration
+* Xplay Demo:
+*  Import Blueprint
+*  Set XPlay Variables BP JSON
+*  Create Playbook
+*  Create Alert
 
 Requirements:
 * This runs on Posh 5.1
