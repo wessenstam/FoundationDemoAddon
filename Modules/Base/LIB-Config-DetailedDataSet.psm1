@@ -17,9 +17,10 @@ Function LIB-Config-DetailedDataSet {
   $SECompany          = "Nutanix";
   $EnablePulse        = 0;
   $Filesversion       = "AutoDetect"
-  $smtpSender         = "cluster@nutanix.com"
+  $smtpSender         = "$($POCNAME)-cluster@nutanix.com"
   $smtpport           = "25"
   $smtpServer         = "nutanix-com.mail.protection.outlook.com"
+  $Supportemail       = "Michell.Grauwmans@nutanix.com"
 
   [int]$startingIP = $ClusterPE_IP.split(".") | select -last 1;
   [Array]$mask = $ClusterPE_IP.split(".") | select -first 3;
@@ -28,6 +29,7 @@ Function LIB-Config-DetailedDataSet {
   write-log -message "Generating names";
 
   $DataIPoctet = $startingIP + 1;
+  $NLBIPOctet  = $startingIP + 2;
   $PCCLIPoctet = $startingIP + 3;
   $PCN1IPoctet = $startingIP + 4;
   $PCN2IPoctet = $startingIP + 5;
@@ -59,6 +61,7 @@ Function LIB-Config-DetailedDataSet {
   [string]$FS1ExtIPst = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $FS1extIPoctetstart
   [string]$FS1ExtIPend= $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $FS1extIPoctetend 
   [string]$NW1DHCPStar= $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $DHCPNW1Octetstart
+  [string]$IISNLBIP   = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $NLBIPOctet
   $FS1IntRange  = "$FS1IntIPst $FS1IntIPend"
   $FS1ExtRange  = "$FS1ExtIPst $FS1ExtIPend"
   $Object = New-Object PSObject;
@@ -92,6 +95,11 @@ Function LIB-Config-DetailedDataSet {
   $Object | add-member Noteproperty StoragePoolName     $StoragePoolName;
   $object | add-member Noteproperty ImagesContainerName $ImagesContainerName;
   $Object | add-member Noteproperty DisksContainerName  $DisksContainerName;
+  $Object | add-member Noteproperty smtpSender          $smtpSender  
+  $object | add-member Noteproperty smtpport            $smtpport    
+  $Object | add-member Noteproperty smtpServer          $smtpServer  
+  $Object | add-member Noteproperty IISNLBIP            $IISNLBIP 
+  $Object | add-member Noteproperty Supportemail        $Supportemail
   return $object
 }
 Export-ModuleMember *

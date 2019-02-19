@@ -37,7 +37,11 @@ Function PSR-Add-DomainController {
           Add-Computer -ComputerName $IP -Domain $Domainname -Restart -Localcredential $LocalCreds -credential $DomainCreds 
         } catch {
           sleep 60
-          Add-Computer -ComputerName $IP -Domain $Domainname -Restart -Localcredential $LocalCreds -credential $DomainCreds -ea:0
+          try {
+            Add-Computer -ComputerName $IP -Domain $Domainname -Restart -Localcredential $LocalCreds -credential $DomainCreds -ea:0
+          } catch {  
+            write-log -message "Assuming Machine join is fine."
+          }
         }
         while (Test-Connection -ComputerName $IP -Quiet -Count 1 -or $countrestart -le 30) {
           

@@ -29,7 +29,7 @@ Function Wrap-Create-SSP-Groups-Projects{
       $admingroup = $result.entities | where {$_.spec.resources.directory_service_user_group.distinguished_name -match $customer -and $_.spec.resources.directory_service_user_group.distinguished_name -match "admin-accounts-group"}
 
     }
-
+    write 10
     write-log -message "Creating User Group for $customer"
 
     try { 

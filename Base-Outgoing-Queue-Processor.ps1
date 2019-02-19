@@ -68,6 +68,7 @@ Import-Module "$($ModuleDir)\SSH-Networking-Pe.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-Storage-Pe.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Install-PC.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Create-SSP-Groups-Projects.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Wrap-Set-SMTP-Px.psm1" -DisableNameChecking;
 
 $exit = 0 
 $exitcount = 0
@@ -188,7 +189,7 @@ do {
 
       write-log -message "Setting up Networking" -sev "CHAPTER"
 
-      $status = SSH-Networking-Pe -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -Domainname $data.domainname -nw1dhcpstart $data.NW1DHCPStart -nw1gateway $datavar.InfraGateway -nw1subnet $datavar.InfraSubnetmask -nw1vlan $datavar.nw1vlan -nw1name $data.nw1name -nw2name $data.nw2name -nw2dhcpstart $datavar.nw2dhcpstart -nw2vlan $datavar.nw2vlan -nw2subnet $datavar.nw2subnet -nw2gw $datavar.nw2gw -DC1IP $data.DC1IP -DC2IP $data.DC2IP
+      $status = SSH-Networking-Pe -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -Domainname $data.domainname -nw1dhcpstart $data.NW1DHCPStart -nw1gateway $datavar.InfraGateway -nw1subnet $datavar.InfraSubnetmask -nw1vlan $datavar.nw1vlan -nw1name $data.nw1name -nw2name $data.nw2name -nw2dhcpstart $datavar.nw2dhcpstart -nw2vlan $datavar.nw2vlan -nw2subnet $datavar.nw2subnet -nw2gateway $datavar.nw2gw -DC1IP $data.DC1IP -DC2IP $data.DC2IP
       Lib-Check-Thread -status $status.result -stage "Setting up Networking" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
 
       write-log -message "Setting up Storage" -sev "CHAPTER"
@@ -296,7 +297,14 @@ do {
 
       write-log -message "Running Full LCM Prism Central Updates (RPA)" -sev "CHAPTER"
 
-      RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+      $status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+      if ($status.result -ne "Success"){
+        sleep 110;$status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+      }
+
+      write-log -message "Setting up SMTP Servers" -sev "CHAPTER"
+
+      Wrap-Set-SMTP-Px -datavar $datavar -datafixed $data
 
       if ($datavar.EnableFlow -eq 1){
 

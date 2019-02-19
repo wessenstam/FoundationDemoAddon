@@ -13,6 +13,7 @@ Function  LIB-Config-ISOurlData {
     $Windows2012   = "http://10.21.250.221/images/ahv/Windows2012.qcow2"
     $Windows10     = "http://10.21.250.221/images/ahv/Windows10.qcow2"
     $windows2016   = "http://10.21.250.221/images/tech-enablement/Windows2016.qcow2"
+    $era           = "http://download.nutanix.com/era/1.0.1/ERA-Server-build-1.0.1-c879f4f17419ad34487fd1759c236e79cdd7c225.qcow2"
   } else {
     $SQL2014ISO    = "https://mail.mmouse.nl/wwwdump/SQLServer2014SP3-FullSlipstream-x64-ENU.iso";
     $XENDESKTOP    = "https://mail.mmouse.nl/wwwdump/XenApp_and_XenDesktop_7_15_3000.iso";
@@ -22,7 +23,8 @@ Function  LIB-Config-ISOurlData {
     $KarbonUbuntu  = "http://download.nutanix.com/karbon/0.8/acs-ubuntu1604.qcow2"
     $Windows2012   = "https://mail.mmouse.nl/wwwdump/Windows2012.qcow2"
     $Windows10     = "https://mail.mmouse.nl/wwwdump/Windows10.qcow2"
-    $windows2016   = "https://mail.mmouse.nl/wwwdump/Windows2016.qcow2"    
+    $windows2016   = "https://mail.mmouse.nl/wwwdump/Windows2016.qcow2"
+    $era           = "http://download.nutanix.com/era/1.0.1/ERA-Server-build-1.0.1-c879f4f17419ad34487fd1759c236e79cdd7c225.qcow2" 
   }
   $Object = New-Object PSObject;
   $Object | add-member Noteproperty Windows2016ISO      $Windows2016ISO; 
@@ -34,5 +36,6 @@ Function  LIB-Config-ISOurlData {
   $Object | add-member Noteproperty office2016ISO       $office2016;
   $Object | add-member Noteproperty KarbonCentOS        $KarbonCentOS;
   $Object | add-member Noteproperty KarbonUbuntu        $KarbonUbuntu;
+  $Object | add-member Noteproperty ERA                 $Era;
   return $object;
 };

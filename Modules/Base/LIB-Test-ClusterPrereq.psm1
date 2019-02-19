@@ -5,7 +5,7 @@ function LIB-Test-ClusterPrereq{
   do {;
     $count = $count +1;
     write-log -message "Connection to cluster $PEClusterIP"
-    write-log -message "Attempt $count out of 6"
+    write-log -message "Attempt $count out of 3"
     try {
       $test = test-connection -computername "$PEClusterIP" -ea:0;
       sleep 15;
@@ -13,11 +13,11 @@ function LIB-Test-ClusterPrereq{
     } catch {
       write-log -message "Connection to cluster not possible"
     }
-  } until ($status -or $count -eq 6 );
+  } until ($status -or $count -eq 3 );
   If ($status){;
 
     write-log -message "Cluster Operable, proceding";
-    
+
     $Status = "Success"
   } else {
 

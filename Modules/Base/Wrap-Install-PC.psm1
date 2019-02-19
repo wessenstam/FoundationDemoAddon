@@ -81,9 +81,9 @@ function Wrap-Install-PC {
       do {
         $count++
 
-        write-log -message "Sleeping 2 minutes for $count out of 3"
+        write-log -message "Sleeping 40 seconds for $count out of 3"
 
-        sleep 120
+        sleep 40
       } until ($count -eq 3)
 
       REST-Finalize-Px -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -ClusterPx_IP $data.PCClusterIP -debug $datavar.debug -sename $data.sename -serole $data.serole -SECompany $data.SECompany -EnablePulse $data.EnablePulse

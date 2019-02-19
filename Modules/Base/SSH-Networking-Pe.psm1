@@ -46,11 +46,15 @@ Function SSH-Networking-Pe {
 
       if ($Existing.output -match "Rx-Automation-Network"){
 
-        write-log -message "Old Network exists...." -sev "WARN" ;
+        write-log -message "Old Network exists...." -sev "WARN";
+
+      } 
+
+      if ($Existing.output -match $nw1name){
 
         $nw1completed = $true
 
-      } elseif ($Existing.output -match $nw1name){
+        write-log -message "Network 1 exist.";
 
       } else {
 
@@ -87,7 +91,7 @@ Function SSH-Networking-Pe {
 
       } elseif ($nw2vlan) {
 
-        write-log -message "Network 2 Does not exist, and needs creating.";
+        write-log -message "Network 2 $nw2name Does not exist, and needs creating.";
         write-log -message "Calculating data.";
 
         $prefix = Convert-IpAddressToMaskLength $nw2Subnet

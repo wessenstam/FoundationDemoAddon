@@ -864,21 +864,19 @@ Function REST-Set-SMTP-Server-Px {
     [string] $ClusterPx_IP,
     [string] $clpassword,
     [string] $clusername,
-    [string] $email_address,
-    [string] $email_fqdn,
+    [string] $datagen,
     [string] $cluuid,
     [string] $debug
   )
 
 
-  write-log -message "We are still implementing this"
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
-  $domainparts = $domainname.split(".")
-  write-log -message "Building Project Create JSON"
 
-  ##$UserGroupURL = "https://$($ClusterPx_IP):9440/api/nutanix/v3/projects"
+  write-log -message "Updating Cluster $cluuid"
+
+  $URL = "https://$($ClusterPx_IP):9440/api/nutanix/v3/clusters/$($cluuid)"
   $json = @"
 {
   "spec": {
@@ -886,12 +884,12 @@ Function REST-Set-SMTP-Server-Px {
     "resources": {
       "config": {
         "smtp_server": {
-          "email_address": "$($email_address)",
+          "email_address": "$($datagen.smtpSender)",
           "type": "PLAIN",
           "server": {
             "address": {
-              "port": 25,
-              "fqdn": "$($email_fqdn)"
+              "port": $($datagen.smtpPort),
+              "fqdn": "$($datagen.smtpServer)"
             }
           }
         }
@@ -906,7 +904,7 @@ Function REST-Set-SMTP-Server-Px {
 }
 "@
 
-  $task = Invoke-RestMethod -Uri $UserGroupURL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
   Return $task
 } 
 

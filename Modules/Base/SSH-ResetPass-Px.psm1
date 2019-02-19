@@ -68,11 +68,9 @@ Function SSH-ResetPass-Px {
           Invoke-SSHStreamShellCommand -ShellStream $stream -Command $clpassword
           $hide = Get-sshsession | Remove-SSHSession
 
-          sleep 30
+          write-log -message "Sleeping 1 minute"
 
-          write-log -message "Sleeping 2 minutes"
-
-          sleep 120
+          sleep 60
 
         } catch {
 
@@ -97,11 +95,10 @@ Function SSH-ResetPass-Px {
         $session = New-SSHSession -ComputerName $PxClusterIP -Credential $credential -AcceptKey -ea:0;  
         $Passresetresult = Invoke-SSHCommand -SSHSession $session -command "echo `"$($clpassword)`" | sudo passwd --stdin $sshusername"
         $hide = Get-sshsession | Remove-SSHSession
-        sleep 30
 
-        write-log -message "Sleeping 2 minutes"
+        write-log -message "Sleeping 1 minute"
 
-        sleep 120
+        sleep 60
 
       }
       write-log -message "Resetting Prism Portal Password";

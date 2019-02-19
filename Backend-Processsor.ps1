@@ -20,8 +20,13 @@ $SingleModelck              = "$($Lockdir)\Single.lck"
 Import-Module "$($ModuleDir)\Queue\Get-IncommingQueueItem.psm1"
 Import-Module "$($ModuleDir)\Queue\Validate-QueueItem.psm1"
 Import-Module "$($ModuleDir)\Base\Lib-Send-Confirmation.psm1"
+Import-Module "$($ModuleDir)\Base\LIB-Config-DetailedDataSet.psm1"
+Import-Module "$($ModuleDir)\Base\LIB-Write-Log.psm1"
+
+
 $Guid = [guid]::newguid()
 $logfile  = "$($logingdir)\Backend-$($Guid.guid).log"
+$datagen = 
 
 start-transcript -path $logfile
 
@@ -40,21 +45,22 @@ write-host "$(get-date -format "hh:mm:ss") | INFO  | Backend Process active"
 do {
   $singleusermode = (get-item $SingleModelck -ea:0).lastwritetime | where {$_ -ge (get-date).addminutes(-90)}
   $object = Get-IncommingueueItem -queuepath $queuepath -incoming $incomingqueue -AutoQueueTimer $AutoQueueTimer -ready $ready
+  $datagen = LIB-Config-DetailedDataSet -ClusterPE_IP $object.PEClusterIP -pocname $object.POCname -debug $object.debug -Sendername $object.Sendername
   if ($object){
-    Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "Queued" -debug $object.debug
+    Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "Queued" -debug $object.debug -datagen $datagen
   }
   $validation = Validate-QueueItem -processingmode "Auto" -incomingqueue $incomingqueue -queuepath $queuepath -outgoingqueue $Outgoing -Readyqueue $Ready -Manualqueue $Manualqueue -AutoQueueTimer $AutoQueueTimer
   if ($validation -match "Error"){
-    Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "QueueError" -debug $object.debug -validation $validation
+    Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "QueueError" -debug $object.debug -validation $validation  -datagen $datagen
   }
   if (!$singleusermode){
     $validation = Validate-QueueItem -processingmode "NOW" -incomingqueue $incomingqueue -queuepath $queuepath -outgoingqueue $Outgoing -Readyqueue $Ready -Manualqueue $Manualqueue
     if ($validation -match "Error"){
-      Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "QueueError" -debug $object.debug -validation $validation
+      Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "QueueError" -debug $object.debug -validation $validation  -datagen $datagen
     }
   } else {
     if ($object){
-      Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "SingleUser" -debug $object.debug
+      Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "SingleUser" -debug $object.debug -datagen $datagen
     } 
     write-host "$(get-date -format "hh:mm:ss") | INFO  | Daemons are not executing as long as single user mode is active, outgoing queue processing disabled."
   }
