@@ -80,3 +80,7 @@ Requirements:
 * This requires the nutanix CMDlets to be installed.
 * Powershell remoting needs to be enabled on the local host
 
+Credits:
+This repo is full powershell, yet a lot was learned from the orginal bash version of Mark Lavi.
+Special thanks to Mark, Christophe Jauffret and Sylvain Huguet for their work!!
+And ofcourse the #calm and #apj-sme-devops channel support that was given on several tough questions. 
