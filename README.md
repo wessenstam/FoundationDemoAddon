@@ -63,9 +63,9 @@ There are more then 30 available.
 
 Todo:
 * There is no installer yet.
+* Figure out why existing networks do not always get deleted.
 * This commit is just to store the code. 
 * Using the full kit requires the installer.
-* SMTP setup is not included in this version.
 * Switch Setup is pending
 * Slack Integration
 * Xplay Demo:
