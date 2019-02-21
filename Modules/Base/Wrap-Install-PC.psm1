@@ -45,12 +45,17 @@ function Wrap-Install-PC {
     write-log -message "Prism Central Finalize Login" -sev "CHAPTER"
 
     REST-Finalize-Px -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -ClusterPx_IP $data.PCClusterIP -debug $datavar.debug -sename $data.sename -serole $data.serole -SECompany $data.SECompany -EnablePulse $data.EnablePulse
-    
+ 
     write-log -message "Add Prism Element cluster to Prism Central Cluster" -sev "CHAPTER"
 
-    $status = CMD-Add-PEtoPC -PEClusterIP $datavar.PEClusterIP -PCClusterIP $data.PCClusterIP -PEAdmin $datavar.PEAdmin -PEPass $datavar.PEPass -debug $datavar.debug 
+    $status1 = CMD-Add-PEtoPC -PEClusterIP $datavar.PEClusterIP -PCClusterIP $data.PCClusterIP -PEAdmin $datavar.PEAdmin -PEPass $datavar.PEPass -debug $datavar.debug 
+    sleep 60
 
-    if ($status.result -ne "Success"){
+    write-log -message "Running Full LCM Prism Central Inventory (RPA)" -sev "CHAPTER"
+
+    $status2 = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug -mode "Stage1"
+
+    if ($status1.result -ne "Success" ){
 
       write-log -message "Prism Central needs help, cleaning"
 
@@ -88,8 +93,11 @@ function Wrap-Install-PC {
 
       REST-Finalize-Px -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -ClusterPx_IP $data.PCClusterIP -debug $datavar.debug -sename $data.sename -serole $data.serole -SECompany $data.SECompany -EnablePulse $data.EnablePulse
 
-      $status = CMD-Add-PEtoPC -PEClusterIP $datavar.PEClusterIP -PCClusterIP $data.PCClusterIP -PEAdmin $datavar.PEAdmin -PEPass $datavar.PEPass -debug $datavar.debug 
-      if ($status.result -eq "Success"){
+      $status1 = CMD-Add-PEtoPC -PEClusterIP $datavar.PEClusterIP -PCClusterIP $data.PCClusterIP -PEAdmin $datavar.PEAdmin -PEPass $datavar.PEPass -debug $datavar.debug 
+
+      $status2 = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug -mode "Stage1"
+
+      if ($status1.result -ne "Success" ){
 
         write-log -message "Prism Central Installed"
 

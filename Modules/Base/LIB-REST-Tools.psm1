@@ -22,7 +22,16 @@ Function REST-Query-ADGroups {
   } 
 
   $JSON = $Payload | convertto-json
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  try { 
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+
+    write-log -message "Going Once"
+
+  }
+
   Return $task
 } 
 
@@ -44,7 +53,17 @@ Function REST-Query-ADGroup {
   write-log -message "Building UserGroup Query JSON"
 
   $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/user_groups/$($uuid)"
-  $task = Invoke-RestMethod -Uri $URL -method "get" -headers $headers;
+
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "get" -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "get" -headers $headers;
+
+    write-log -message "Going once"
+
+  }
+
   Return $task
 } 
 
@@ -73,7 +92,17 @@ Function REST-Query-Subnet {
   } 
 
   $JSON = $Payload | convertto-json
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;  
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+    
+    write-log -message "Going once"
+
+  }
+
   $result = $task.entities | where {$_.spec.name -eq $networkname}
   Return $result
 } 
@@ -146,10 +175,44 @@ Function REST-Query-Cluster {
   } 
 
   $JSON = $Payload | convertto-json
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  }
   $filter = $task.entities | where {$_.spec.resources.network.external_ip -eq $targetIP -or $_.spec.resources.network.external_ip -eq $null}
 
   Return $filter
+} 
+
+Function REST-Query-DetailCluster {
+  Param (
+    [string] $ClusterPC_IP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $uuid,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Building Cluster Query JSON"
+
+  $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/clusters/$($uuid)"
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "get" -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "get" -headers $headers;
+
+    write-log -message "Going once"
+  }  
+  Return $task
 } 
 
 Function REST-Query-Projects {
@@ -174,8 +237,14 @@ Function REST-Query-Projects {
   } 
 
   $JSON = $Payload | convertto-json
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
-  
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  }
   write-log -message "We found $($task.entities.count) items."
 
   Return $task
@@ -203,7 +272,7 @@ Function REST-Update-Project {
   $credPair = "$($clusername):$($clpassword)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
-  write-log -message "Executing Project UpdateN"
+  write-log -message "Executing Project Update"
   [int]$spec 
   $UserGroupURL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/projects_internal/$($project.metadata.uuid)"
   $json = @"
@@ -552,11 +621,12 @@ Function REST-Update-Project {
     try{
       $task = Invoke-RestMethod -Uri $UserGroupURL -method "put" -body $json -ContentType 'application/json' -headers $headers;
       $RESTSuccess = 1
+      sleep 10
     } catch {
       sleep 20
       write-log -message "Retry REST $countretry"
     }
-  } until ($RESTSuccess -eq 1 -or $countretry -ge 5)
+  } until ($RESTSuccess -eq 1 -or $countretry -ge 6)
 
   if ($RESTSuccess -eq 1){
     write-log -message "Project Update Success"
@@ -588,8 +658,15 @@ Function REST-Get-ACPs {
   } 
 
   $JSON = $Payload | convertto-json
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
 
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  }
   write-log -message "We found $($task.entities.count) items."
 
   Return $task
@@ -680,8 +757,16 @@ Function REST-Create-Project {
   }
 }
 "@
+  try{
+    $task = Invoke-RestMethod -Uri $UserGroupURL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
 
-  $task = Invoke-RestMethod -Uri $UserGroupURL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    write-log -message "Going once"
+    $task = Invoke-RestMethod -Uri $UserGroupURL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  }
+
+  sleep 5
   Return $task
 
 } 
@@ -753,8 +838,14 @@ Function REST-Create-ACP-RoleMap {
   }
 }
 "@
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  }catch{
+    sleep 10
 
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    write-log -message "Going once"
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  }
   Return $task
 } 
 
@@ -782,8 +873,15 @@ Function REST-Query-Role-List {
   } 
 
   $JSON = $Payload | convertto-json
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
 
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  }
   write-log -message "We found $($task.entities.count) items, filtering."
 
   $result = $task.entities | where {$_.spec.name -eq $rolename}
@@ -806,8 +904,15 @@ Function REST-Query-Role-Object {
   write-log -message "Getting Role for $RoleUUID"
 
   $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/roles/$($RoleUUID)"
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "get" -headers $headers;
+  } catch {
+    sleep 10
 
-  $task = Invoke-RestMethod -Uri $URL -method "get" -headers $headers;
+    write-log -message "Going once"
+    $task = Invoke-RestMethod -Uri $URL -method "get" -headers $headers;
+  }
+
   Return $task
 } 
 
@@ -853,60 +958,21 @@ $json = @"
   }
 }
 "@
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  }
+  
 
   Return $result
 } 
 
 
-Function REST-Set-SMTP-Server-Px {
-  Param (
-    [string] $ClusterPx_IP,
-    [string] $clpassword,
-    [string] $clusername,
-    [string] $datagen,
-    [string] $cluuid,
-    [string] $debug
-  )
-
-
-  $credPair = "$($clusername):$($clpassword)"
-  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
-  $headers = @{ Authorization = "Basic $encodedCredentials" }
-
-  write-log -message "Updating Cluster $cluuid"
-
-  $URL = "https://$($ClusterPx_IP):9440/api/nutanix/v3/clusters/$($cluuid)"
-  $json = @"
-{
-  "spec": {
-    "name": "string",
-    "resources": {
-      "config": {
-        "smtp_server": {
-          "email_address": "$($datagen.smtpSender)",
-          "type": "PLAIN",
-          "server": {
-            "address": {
-              "port": $($datagen.smtpPort),
-              "fqdn": "$($datagen.smtpServer)"
-            }
-          }
-        }
-      }
-    }
-  },
-  "api_version": "3.1.0",
-  "metadata": {
-    "kind": "cluster",
-    "uuid": "$($cluuid)"
-  }
-}
-"@
-
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
-  Return $task
-} 
 
 
 Export-ModuleMember *

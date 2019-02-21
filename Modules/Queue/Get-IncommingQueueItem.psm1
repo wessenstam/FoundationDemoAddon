@@ -9,6 +9,7 @@ Function Get-IncommingueueItem{
   ## Version 2.0
   $item = $null
   write-host "$(get-date -format "hh:mm:ss") | INFO  | Terminating leftover outlook."
+  get-process outlook | stop-process -ea:0
   write-host "$(get-date -format "hh:mm:ss") | INFO  | Starting outlook."
   Add-type -assembly "Microsoft.Office.Interop.Outlook" | out-null 
   $olFolders = "Microsoft.Office.Interop.Outlook.olDefaultFolders" -as [type] 
@@ -32,6 +33,8 @@ Function Get-IncommingueueItem{
     $DemoIISXPlay = 1
     $InstallFiles = 1
     $SetupSSP = 1
+    $debug = 1
+    $pcmode = 3
     $Body = $item.body
     $Body = $Body -split "\n"
     $Sender = $item.SENDERname
@@ -57,6 +60,8 @@ Function Get-IncommingueueItem{
     $nw2dhcpstart = ($nw2dhcp -split ("-"))[0]
     if ($body -match "cluster RTP-"){
       $POCname = (($Body | where {$_ -match "^Your Reservation Information for"}) -replace('Your Reservation Information for.*RTP-POC', 'RTP-POC')) -replace (" \(.*",'')
+    } elseif ($body -match "cluster PHX-")  {
+      $POCname = (($Body | where {$_ -match "^Your Reservation Information for"}) -replace('Your Reservation Information for.*PHX-POC', 'PHX-POC')) -replace (" \(.*",'')
     } else {
       $POCname = (($Body | where {$_ -match "^Your Reservation Information for"}) -replace('Your Reservation Information for.*POC', 'POC')) -replace (" \(.*",'')
     }
@@ -68,14 +73,10 @@ Function Get-IncommingueueItem{
     foreach ($line in $params){
       if ($line -match "^Debug:[0-9]"){
         $debug = $line -replace("^Debug:([0-9]).*", '$1')
-      } else {
-        $debug = 1
-      }
+      } 
       if ($line -match "^pcmode:[0-9]"){
         $pcmode = $line -replace("^pcmode:([0-9]).*", '$1')
-      } else {
-        $pcmode = 3
-      }
+      } 
       if ($line -match "^queue:[0-9]"){
         $queue = $line -replace("^queue:([0-9]).*", '$1')
       } 

@@ -10,6 +10,7 @@ Function Wrap-Create-SSP-Groups-Projects{
   $subnet = REST-Query-Subnet -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -networkname $datafixed.nw1name -debug $datavar.debug
   sleep 10
   $cluster = REST-Query-Cluster -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -targetIP $datafixed.PCClusterIP
+  sleep 10
 
   write-log -message "Using Cluster $($cluster.metadata.uuid)"
   write-log -message "Using Subnet $($subnet.metadata.uuid)"
@@ -26,10 +27,11 @@ Function Wrap-Create-SSP-Groups-Projects{
       write-log -message "Admin Group for $customer exists"
 
       $result = REST-Query-ADGroups -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin-debug $datavar.debug
+      sleep 10
       $admingroup = $result.entities | where {$_.spec.resources.directory_service_user_group.distinguished_name -match $customer -and $_.spec.resources.directory_service_user_group.distinguished_name -match "admin-accounts-group"}
 
     }
-    write 10
+    sleep 10
     write-log -message "Creating User Group for $customer"
 
     try { 
@@ -39,7 +41,9 @@ Function Wrap-Create-SSP-Groups-Projects{
       write-log -message "User Group for $customer exists"
 
       $result = REST-Query-ADGroups -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -debug $datavar.debug
+      sleep 10
       $usergroup = $result.entities | where {$_.spec.resources.directory_service_user_group.distinguished_name -match $customer -and $_.spec.resources.directory_service_user_group.distinguished_name -match "user-accounts-group"}
+      sleep 10
     }
 
     write-log -message "Using Admingroup $($admingroup.metadata.uuid)"
@@ -62,6 +66,7 @@ Function Wrap-Create-SSP-Groups-Projects{
     $consumer = REST-Query-Role-List -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -rolename "Consumer" -debug $datavar.debug
     sleep 10
     $ProjectAdmin = REST-Query-Role-List -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -rolename "Project Admin" -debug $datavar.debug
+    sleep 10
 
     write-log -message "Using Consumer Role $($consumer.metadata.uuid)"
     write-log -message "Using ProjectAdmin Role $($ProjectAdmin.metadata.uuid)"

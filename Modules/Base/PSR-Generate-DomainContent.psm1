@@ -37,7 +37,7 @@ Function PSR-Generate-DomainContent {
     } catch {
     };
     
-    new-aduser -name $args[2] -AccountPassword $args[1] -PasswordNeverExpires $true -userPrincipalName $args[2] -EmailAddress "$($args[2])@$($args[0])" -Office "Hoofddorp" -ea:0 | out-null;
+    new-aduser -name $args[2] -AccountPassword $args[1] -PasswordNeverExpires $true -userPrincipalName "$($args[2])@$($args[0])" -EmailAddress "$($args[2])@$($args[0])" -Office "Hoofddorp" -ea:0 | out-null;
     add-ADGroupMember "Domain Admins" $args[2] -ea:0 | out-null;
     function Generate-Name {;
       $lastnames  = "Smith Johnson Williams Jones Brown Davis Miller Wilson Moore Taylor Anderson Thomas Jackson White Harris Martin Thompson Garcia Martinez Robinson Clark Wright Rodriguez Lopez Lewis Perez Hill Roberts Lee Scott Turner Walker Green Phillips Hall Adams Campbell Allen Baker Parker Young Gonzalez Evans Hernandez Nelson Edwards King Carter Collins";

@@ -36,6 +36,7 @@ Import-Module "$($ModuleDir)\CMD-Create-FSShares.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMD-Join-Px-to-Win-Domain.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMDPSR-Create-VM.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMD-Set-DataServicesIP.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\CMD-Set-SMTPServerSettings.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMD-Upload-ISOImages.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMD-Wait-ImageUpload.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Config-DetailedDataSet.psm1" -DisableNameChecking;
@@ -68,7 +69,8 @@ Import-Module "$($ModuleDir)\SSH-Networking-Pe.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-Storage-Pe.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Install-PC.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Create-SSP-Groups-Projects.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Wrap-Set-SMTP-Px.psm1" -DisableNameChecking;
+
+
 
 $exit = 0 
 $exitcount = 0
@@ -265,6 +267,14 @@ do {
 
       CMD-Join-PxtoADDomain -PEAdmin $datavar.PEAdmin -PEPass $datavar.PEPass -PxClusterIP $data.PCClusterIP -DC1_IPAddress $data.DC1IP -DC2_IPAddress $data.DC2IP -Domainname $data.Domainname -SysprepPassword $data.SysprepPassword -debug $datavar.debug
 
+      write-log -message "Setting SMTP server for Prism Element" -sev "CHAPTER"
+   
+      CMD-Set-SMTPServerSettings -datagen $data -datavar $datavar -ip $datavar.PEClusterIP
+   
+      write-log -message "Setting SMTP server for Prism Central"
+
+      CMD-Set-SMTPServerSettings -datagen $data -datavar $datavar -ip $data.PCClusterIP
+
       if ($datavar.DemoXenDeskT -eq 1 -or $datavar.InstallFiles -eq 1){
         if ($datavar.SystemModel -notmatch "^SX"){
 
@@ -297,14 +307,10 @@ do {
 
       write-log -message "Running Full LCM Prism Central Updates (RPA)" -sev "CHAPTER"
 
-      $status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+      $status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug -mode "Stage2"
       if ($status.result -ne "Success"){
         sleep 110;$status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
       }
-
-      write-log -message "Setting up SMTP Servers" -sev "CHAPTER"
-
-      Wrap-Set-SMTP-Px -datavar $datavar -datafixed $data
 
       if ($datavar.EnableFlow -eq 1){
 

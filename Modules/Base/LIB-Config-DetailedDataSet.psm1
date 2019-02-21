@@ -19,7 +19,7 @@ Function LIB-Config-DetailedDataSet {
   $Filesversion       = "AutoDetect"
   $smtpSender         = "$($POCNAME)-cluster@nutanix.com"
   $smtpport           = "25"
-  $smtpServer         = "nutanix-com.mail.protection.outlook.com"
+  $smtpServer         = "mxb-002c1b01.gslb.pphosted.com"
   $Supportemail       = "Michell.Grauwmans@nutanix.com"
 
   [int]$startingIP = $ClusterPE_IP.split(".") | select -last 1;
