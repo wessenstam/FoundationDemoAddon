@@ -68,12 +68,9 @@ Todo:
 * This commit is just to store the code. 
 * Using the full kit requires the installer.
 * Switch Setup is pending
-* Slack Integration
-* Xplay Demo:
-*  Import Blueprint
-*  Set XPlay Variables BP JSON
-*  Create Playbook
-*  Create Alert
+* Slack Integration (finalize)
+* ERA Finalize
+
 
 Requirements:
 * This runs on Posh 5.1
