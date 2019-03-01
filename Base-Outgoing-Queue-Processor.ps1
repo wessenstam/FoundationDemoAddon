@@ -4,6 +4,8 @@ $ModuleDir             = "C:\HostedPocProvisioningService\Modules\base"
 $daemons               = "C:\HostedPocProvisioningService\Daemons"
 $Lockdir               = "C:\HostedPocProvisioningService\Lock"
 $queuepath             = "C:\HostedPocProvisioningService\Queue"
+$basedir               = "C:\HostedPocProvisioningService"
+$BlueprintsPath        = "C:\HostedPocProvisioningService\BluePrints"
 $ArchiveQueue          = "Archive"
 $OutgoingQueue         = "Outgoing" 
 $SingleModelck         = "$($Lockdir)\Single.lck"
@@ -35,6 +37,7 @@ Import-Module "$($ModuleDir)\CMD-Create-FS.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMD-Create-FSShares.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMD-Join-Px-to-Win-Domain.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMDPSR-Create-VM.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\CMD-Create-VM.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMD-Set-DataServicesIP.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMD-Set-SMTPServerSettings.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\CMD-Upload-ISOImages.psm1" -DisableNameChecking;
@@ -54,8 +57,11 @@ Import-Module "$($ModuleDir)\LIB-Write-Log.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\PSR-Add-DomainController.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\PSR-Create-Domain.psm1" -DisableNameChecking; 
 Import-Module "$($ModuleDir)\PSR-Generate-DomainContent.psm1" -DisableNameChecking; 
+Import-Module "$($ModuleDir)\PSR-Join-Domain.psm1" -DisableNameChecking; 
 Import-Module "$($ModuleDir)\REST-Enable-Calm-PE.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\REST-Enable-Flow-PE.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\REST-Enable-Karbon-PC.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\REST-ERA-ResetPass.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\REST-Finalize-Px.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\REST-Image-Import-PC.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\REST-Install-PC.psm1" -DisableNameChecking;
@@ -63,12 +69,15 @@ Import-Module "$($ModuleDir)\REST-LCM-Inventory-Px.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\REST-WorkShopConfig-Px.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\RPA-LCM-Inventory.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-Manage-SoftwarePE.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\SSH-Unlock-XPlay.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-ResetPass-Px.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-RoleMapping-Px.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-Networking-Pe.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-Storage-Pe.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Install-PC.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Create-SSP-Groups-Projects.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Wrap-Import-XPlay-Demo.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Wrap-Install-Era.psm1" -DisableNameChecking;
 
 
 
@@ -110,7 +119,9 @@ do {
     
 
     ### ISO Dirs
-    $ISOurlData = LIB-Config-ISOurlData -region $datavar.Location
+    $ISOurlData1 = LIB-Config-ISOurlData -region $datavar.Location
+    $ISOurlData2 = LIB-Config-ISOurlData -region "Backup"
+
     ### Full Data Set
     $data = LIB-Config-DetailedDataSet -ClusterPE_IP $datavar.PEClusterIP -pocname $datavar.POCname -debug $datavar.debug -Sendername $datavar.Sendername
     $data.syspreppassword = $datavar.PEPass
@@ -196,12 +207,12 @@ do {
 
       write-log -message "Setting up Storage" -sev "CHAPTER"
 
-      $status = SSH-Storage-Pe -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -StoragePoolName $data.StoragePoolName -DisksContainerName $data.DisksContainerName -ImagesContainerName $data.ImagesContainerName
+      $status = SSH-Storage-Pe -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -StoragePoolName $data.StoragePoolName -DisksContainerName $data.DisksContainerName -ImagesContainerName $data.ImagesContainerName -ERAContainerName $data.ERAContainerName
       Lib-Check-Thread -status $status.result -stage "Setting up Storage" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
 
       write-log -message "Uploading ISO Images" -sev "CHAPTER"
       
-      $STATUS = CMD-Upload-ISOImages -ISOurlData $ISOurlData -debug $datavar.debug -peadmin $datavar.PEAdmin -pepass $datavar.PEPass -PEClusterIP $datavar.PEClusterIP -ContainerName $data.ImagesContainerName -dcimage $data.DC_ImageName
+      $STATUS = CMD-Upload-ISOImages -ISOurlDataPrimair $ISOurlData1 -ISOurlDataBackup $ISOurlData2 -debug $datavar.debug -peadmin $datavar.PEAdmin -pepass $datavar.PEPass -PEClusterIP $datavar.PEClusterIP -ContainerName $data.ImagesContainerName -dcimage $data.DC_ImageName
       Lib-Check-Thread -status $status.result -stage "Uploading ISO Images" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
 
       write-log -message "Prism Element Prep (REST)" -sev "CHAPTER"
@@ -308,8 +319,22 @@ do {
       write-log -message "Running Full LCM Prism Central Updates (RPA)" -sev "CHAPTER"
 
       $status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug -mode "Stage2"
+
       if ($status.result -ne "Success"){
-        sleep 110;$status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+
+        write-log -message "Running Full LCM Prism Central Updates (RPA), it needs help"
+
+        $status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug -mode "Stage1"
+        
+        write-log -message "All i do is sleep"
+
+        sleep 110;
+
+        write-log -message "Sleeping some more"
+
+        sleep 110;
+
+        $status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug -mode "Stage2"
       }
 
       if ($datavar.EnableFlow -eq 1){
@@ -358,25 +383,28 @@ do {
       if ($datavar.InstallEra -eq 1){
 
         write-log -message "Installing ERA" -sev "CHAPTER"
-        write-log -message "Not implemented"    
+        
+       # Wrap-Install-Era -datagen $data -datavar $datavar -ServerSysprepfile $ServerSysprepfile
       
       } 
       if ($datavar.InstallKarbon -eq 1){
 
         write-log -message "Installing Karbon" -sev "CHAPTER"
-        write-log -message "Images are uploaded, Karbon cannot be installed yet"    
-      
-      } 
+
+        #REST-Enable-Karbon -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+      }
+
       if ($datavar.DemoIISXPlay -eq 1){
 
         write-log -message "Installing XPlay IIS CPU Scaling" -sev "CHAPTER"
-        write-log -message "Not implemented"    
-      
+        
+        $demo = Wrap-Import-XPlay-Demo -datagen $data -datavar $datavar -BlueprintsPath $BlueprintsPath -basedir $basedir
+
       }
 
       write-log -message "Checking uploaded ISO Images" -sev "CHAPTER"
       
-      $STATUS = CMD-Upload-ISOImages -ISOurlData $ISOurlData -debug $datavar.debug -peadmin $datavar.PEAdmin -pepass $datavar.PEPass -PEClusterIP $datavar.PEClusterIP -ContainerName $data.ImagesContainerName -dcimage $data.DC_ImageName
+      $STATUS = CMD-Upload-ISOImages -ISOurlDataPrimair $ISOurlData1 -ISOurlDataBackup $ISOurlData2 -debug $datavar.debug -peadmin $datavar.PEAdmin -pepass $datavar.PEPass -PEClusterIP $datavar.PEClusterIP -ContainerName $data.ImagesContainerName -dcimage $data.DC_ImageName
       Lib-Check-Thread -status $status.result -stage "Uploading ISO Images" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
 
       LIB-Send-Confirmation -reciever $datavar.SenderEMail -datagen $data -datavar $datavar -mode "end" -debug $datavar.debug -logfile $logfile

@@ -8,7 +8,7 @@ Function Lib-Check-Thread {
   $Logfile,
   $debug
   )
-  if ($Status.Result -eq "Failed"){
+  if ($Status.Result -eq "Failed|Finished"){
     stop-transcript
     LIB-Send-Confirmation -reciever $datavar.SenderEMail -datagen $data -datavar $datavar -mode "FailedStage" -stage $stage -debug $datavar.debug -logfile $logfile
     $exit = 1
@@ -21,7 +21,7 @@ Function Lib-Check-Thread {
         Connect-NutanixVPN -VPNUser $datavar.VPNUser -VPNPass $datavar.vpnpass -VPNURL $datavar.vpnurl -mode "stop"
       }
     }catch {}
-  write-host $tatus
+  write-host $status
   break
   }
 } 

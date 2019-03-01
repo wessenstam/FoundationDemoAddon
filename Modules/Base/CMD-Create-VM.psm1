@@ -1,7 +1,6 @@
-Function CMDPSR-Create-VM {
+Function CMD-Create-VM {
   param (
     $Sysprepfile,
-    [string] $SysprepPassword,
     [string] $Networkname,
     [string] $Subnetmask,
     [string] $VMname,
@@ -11,7 +10,7 @@ Function CMDPSR-Create-VM {
     [string] $DNSServer1,
     [string] $DNSServer2,
     [decimal] $CPU = 4,
-    [decimal] $RAM = 8192,
+    [decimal] $RAM = 16,
     [decimal] $DiskSizeGB = 80,
     [string] $Sysprep,
     [string] $PEClusterIP,
@@ -60,11 +59,9 @@ Function CMDPSR-Create-VM {
         write-log -message "Cleaning up for you..., are you like my author?.."
   
         $vm.vmid | Remove-NTNXVirtualMachine
-        if ($VMname -match "^DC1-.*POC"){
-          $VM = Get-NTNXVM |where {$_.vmname -match "^DC2-.*POC"} | select -first 1 -ea:0
-          $vm.vmid | Remove-NTNXVirtualMachine -ea:0
-        }
-        sleep 30
+
+        SLEEP 60
+
       };
 
   
@@ -74,7 +71,7 @@ Function CMDPSR-Create-VM {
     $network = Get-NTNXNetwork | where { $_.name -match $Networkname };
     if($network){;
       $nicSpec.networkuuid = $network.uuid;
-      $nicSpec.requestedIpAddress = $VMip
+      $nicSpec.requestedIpAddress = $VMip;
       $nicSpec.requestIp = $VMip;
   
       write-log -message "Network found, UUID Captured $($network.uuid)";
@@ -86,6 +83,12 @@ Function CMDPSR-Create-VM {
   
     };
   
+$sysprep = @"
+#cloud-config
+runcmd:
+ - configure_static_ip ip=$VMip gateway=$VMgw netmask=$Subnetmask nameserver=$($DNSServer1),$($DNSServer2)
+"@
+
     write-log -message "Done setting up network";
     if ($ImageName -notmatch "ISO"){
       write-log -message "Setting up cloned disk";
@@ -105,7 +108,7 @@ Function CMDPSR-Create-VM {
         };
         $diskCloneSpec.vmDiskUuid = $diskImage.vmDiskId;
         $VMCust = new-ntnxobject -name VMCustomizationConfigDTO;
-        $vmcust.userdata = $Sysprepfile;
+        $vmcust.userdata = $sysprep;
         $vmDisk.vmDiskClone = $diskCloneSpec;
         write-log -message "Disk Image Clone created.";
     
@@ -211,7 +214,7 @@ Function CMDPSR-Create-VM {
       $count2 = 0  
       do {;
   
-        write-log -message "Attempt 1, count: $count2"
+        write-log -message "Attempting count: $count2"
   
         $VM = Get-NTNXVM |where {$_.vmname -eq $VMname};
         $ip = $vm.ipAddresses[0];
@@ -220,45 +223,10 @@ Function CMDPSR-Create-VM {
       } until ($ip -and $ip -notmatch "^169" -or $count2 -ge 15);
     }
 
-    write-log -message "Calculating subnet size";
+    write-log -message "Waiting for cloud init to finish";
+  
+    sleep 110
 
-    $subnetprefix = Convert-IpAddressToMaskLength $Subnetmask;
-  
-    write-log -message "Subnet mask is $Subnetmask";
-    write-log -message "Calculated size is $subnetprefix";
-  
-    if ($subnetprefix -eq 0){;
-  
-      write-log -message "Garbage in is garbage out, not letting that happen." -sev "WARN";
-  
-    }   
-  
-    write-log -message "Building Powershell remoting credential";
-  
-    $password = $SysprepPassword | ConvertTo-SecureString -asplaintext -force;
-    $credential = New-Object System.Management.Automation.PsCredential("administrator",$password);
-  
-    write-log -message "Waiting for sysprep to finish";
-  
-    sleep 70;
-    $oldIPtest = test-connection -computername $ip -ea:0;
-    if ($oldIPtest[0].statuscode -eq 0){;
-  
-      write-log -message "Host is alive at $IP"
-      write-log -message "Changing the VM IPaddress and name using PowerShell Remoting.";
-  
-      $connect = invoke-command -computername $ip -credential $credential {;
-        Rename-Computer -NewName $Args[3] -force; New-NetIPAddress -IPAddress $args[0] -DefaultGateway $args[1] -PrefixLength $args[2] -InterfaceIndex (Get-NetAdapter).InterfaceIndex ; shutdown -r -t 1;
-      } -Args $VMip,$VMgw,$subnetprefix,$VMname -asjob;
-  
-      write-log -message "Sleeping 60 after command execution.";
-  
-      sleep 60;
-    } else {;
-  
-      write-log -message "Cannot Reach VM on its first IP Something is wrong. This message will self distruct in 5 seconds." -sev "WARN";
-  
-    };
     try {
       $NEWIPtest = test-connection -computername $VMip -ea:0;
     } catch {
@@ -268,11 +236,7 @@ Function CMDPSR-Create-VM {
     }
     if ($NEWIPtest){
   
-      write-log -message "IPchange succesful, setting DNS";
-  
-      $connect = invoke-command -computername $VMip -credential $credential {;
-        Set-DnsClientServerAddress -interfacealias (Get-NetAdapter).name -ServerAddresses ("$($args[0])","$($args[1])");
-      }  -Args $DNSServer1,$DNSServer2;
+      write-log -message "IPchange succesful";
   
       write-log -message "This is the captain speaking, one to beam up.";
       $result = "Success"

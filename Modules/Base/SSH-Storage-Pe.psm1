@@ -6,6 +6,7 @@ Function SSH-Storage-Pe {
     [string] $StoragePoolName,
     [string] $ImagesContainerName,
     [string] $DisksContainerName,
+    [string] $ERAContainerName,
     [string] $debug
   )
   #dependencies LIB-write-log, Posh-SSH, PE_ncli
@@ -106,7 +107,34 @@ Function SSH-Storage-Pe {
         write-log -message "We should not be here" -sev "error"
 
       }
+    
+      write-log -message "Checking ERA Container";
       
+      $Existing = Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli container ls" -EnsureConnection
+      $object = $Existing.Output | ConvertFrom-Csv -Delimiter ":" -Header Name,Value,Something
+      $Currentname = ($object | where {$_.name -match "Name"}).value | where {$_ -eq $ERAContainerName} | select -first 1
+
+      if ($Currentname -eq $ERAContainerName){
+
+        write-log -message "All Done here";
+
+        $SCont3 = $true
+
+      } elseif (!$Currentname){
+
+        write-log -message "Storage container for ERA does not exist yet.";
+        write-log -message "New Name will be $ERAContainerName";
+        write-log -message "Creating the container";
+
+        $Create = Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli container create name=$($ERAContainerName) sp-name=$($StoragePoolName)"  -EnsureConnection
+   
+
+      } else {
+
+        write-log -message "We should not be here" -sev "error"
+
+      }
+
     } catch {;
       $nw1completed = $false
 
@@ -114,7 +142,7 @@ Function SSH-Storage-Pe {
 
       sleep 2
     }
-  } until (($SCont1 -eq $true -and $SCont2 -and $sprename -eq $true) -or $count -ge 6)
+  } until (($SCont1 -eq $true -and $SCont2 -and $sprename -eq $true -and $SCont3 -eq $true) -or $count -ge 6)
 
  
   if ($nw1completed -eq $true){

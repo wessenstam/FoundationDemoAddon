@@ -1,6 +1,7 @@
 Function CMD-Upload-ISOImages {
   param (
-   $ISOurlData,
+   [Object] $ISOurlDataBackup,
+   [Object] $ISOurlDataPrimair,
    [string] $PEClusterIP,
    [string] $peadmin,
    [string] $ContainerName,
@@ -10,7 +11,7 @@ Function CMD-Upload-ISOImages {
   )
 
   $count5 = 0
-
+  $ISOurlData = $ISOurlDataPrimair
   $nametemp = ($ISOurlData | gm | where {$_.membertype -eq "noteproperty"}).name
   Foreach ($item in $nametemp){
     if ($item -ne $dcimage){
@@ -70,6 +71,7 @@ Function CMD-Upload-ISOImages {
           write-log -message "Container is $($container.containerUuid)"
           write-log -message "URL is $($ISOurlData.$($name))"
           write-log -message "Task is running :"
+          $task
 
         } catch {
   
@@ -85,14 +87,38 @@ Function CMD-Upload-ISOImages {
         };
       };
       do{
+        sleep 115
+        $countrunning = 0
+        $countrunning = (GET-NTNXTASK | where {$_.operationtype -match "ImageCreate" -and $_.progressstatus -match "running|queued"}).count
 
         write-log -message "Uploading $name first as we need $dcimage for AD etc."
         write-log -message "Looping 2 minutes, cycle $count out of 2000"
+        write-log -message "We found $($countrunning) active upload tasks" 
 
         $count ++
         $image = (get-ntnximage | where {$_.name -eq $name} -ea:0);
-        sleep 115
+        if ($countrunning -eq 0 -and !$image){
+
+          write-log -message "Primary URL Source data issues, changing to backup urls." -sev "WARN"
+
+          $ISOurlData = $ISOurlDataBackup
+          $importspec = New-NTNXObject -Name ImageImportSpecDTO;
+          $importspec.url = $ISOurlData.$($name)
+          $importspec.containerUuid = $container.containerUuid;
+          $importspec.containername = $container.name;
+          if ($name -match "ISO"){
+            $task = New-NTNXImage -name "$name" -Annotation "$name" -ImageType "iso_image" -ImageImportSpec $importspec;
+          } else {
+            $task = New-NTNXImage -name "$name" -Annotation "$name" -ImageType "disk_image" -ImageImportSpec $importspec;
+          }
+          write-log -message "URL is $($ISOurlData.$($name))"
+          write-log -message "Task is running $task"
+
+        }
+
+        
         $hide = LIB-Connect-PSnutanix -ClusterName $PEClusterIP -NutanixClusterUsername $PEAdmin -NutanixClusterPassword $PEPass;  
+
       } until ($image -or $count -ge 2000)
       foreach ($name in $names){
         write-log -message "Start Processing"

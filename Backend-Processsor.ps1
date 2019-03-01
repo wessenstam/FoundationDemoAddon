@@ -26,7 +26,7 @@ Import-Module "$($ModuleDir)\Base\LIB-Write-Log.psm1"
 
 $Guid = [guid]::newguid()
 $logfile  = "$($logingdir)\Backend-$($Guid.guid).log"
-$datagen = 
+
 
 start-transcript -path $logfile
 

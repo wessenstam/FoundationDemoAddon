@@ -3,7 +3,7 @@ Function SSH-ResetPass-Px {
     [string] $PxClusterIP,
     [string] $clpassword,
     [string] $clusername,
-    [string] $mode,
+    [string] $mode = "NORMAL",
     [string] $debug
   )
   #dependencies LIB-write-log, Posh-SSH, PE_ncli
@@ -13,14 +13,18 @@ Function SSH-ResetPass-Px {
   $Securepass = ConvertTo-SecureString $clpassword -AsPlainText -Force;
   
   write-log -message "Building Credential for SSH session";
+  write-log -message "Mode is $mode";
+
   if ($mode -eq "PE"){
     $sshusername = "admin" 
     $oldSecurepass = ConvertTo-SecureString "Nutanix/4u" -AsPlainText -Force;
+  } elseif ($mode -eq "ERA" ){
+    $sshusername = "era" 
+    $oldSecurepass = ConvertTo-SecureString "Nutanix.1" -AsPlainText -Force;
   } else {
     $sshusername = "nutanix"
     $oldSecurepass = ConvertTo-SecureString "nutanix/4u" -AsPlainText -Force; 
   }
-  
 
 
   do {;
@@ -98,42 +102,50 @@ Function SSH-ResetPass-Px {
 
         write-log -message "Sleeping 1 minute"
 
+        $passreset = $true
         sleep 60
 
       }
-      write-log -message "Resetting Prism Portal Password";
       
-      try{
-        $credential = New-Object System.Management.Automation.PSCredential ($sshusername, $Securepass);
-        $session = New-SSHSession -ComputerName $PxClusterIP -Credential $credential -AcceptKey -ea:0;
-        sleep 1
-        $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
-        $hide = Get-sshsession | Remove-SSHSession
-        $session = New-SSHSession -ComputerName $PxClusterIP -Credential $credential -AcceptKey -ea:0;
-        sleep 1
-        $Passresetresult = Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli user reset-password user-name='$($clusername)' password='$($clpassword)'" -EnsureConnection
-        if ($Passresetresult.exitstatus -eq "0"){
+      if ($mode -ne "ERA"){
+        $passreset = $false
 
-          write-log -message "Password reset successful."
-
-          $passreset = $true
-        } elseif  ($Passresetresult.exitstatus -eq "1" -and $Passresetresult.output -match "characters from previous password"){
-
-           write-log -message "Password reset already executed."
-
-          $passreset = $true       
-        } else {
-
-          write-log -message "Unknown exit in password change." -sev "WARN"
-          write-host $Passresetresult
-
-          $passreset = $false
-
+        write-log -message "Resetting Prism Portal Password";
+  
+        try{
+          $credential = New-Object System.Management.Automation.PSCredential ($sshusername, $Securepass);
+          $session = New-SSHSession -ComputerName $PxClusterIP -Credential $credential -AcceptKey -ea:0;
+          sleep 1
+          $stream = $session.Session.CreateShellStream("dumb", 0, 0, 0, 0, 1000)
+          $hide = Get-sshsession | Remove-SSHSession
+          $session = New-SSHSession -ComputerName $PxClusterIP -Credential $credential -AcceptKey -ea:0;
+          sleep 1
+          $Passresetresult = Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli user reset-password user-name='$($clusername)' password='$($clpassword)'" -EnsureConnection
+          if ($Passresetresult.exitstatus -eq "0"){
+  
+            write-log -message "Password reset successful."
+  
+            $passreset = $true
+          } elseif  ($Passresetresult.exitstatus -eq "1" -and $Passresetresult.output -match "characters from previous password"){
+  
+             write-log -message "Password reset already executed."
+  
+            $passreset = $true       
+          } else {
+  
+            write-log -message "Unknown exit in password change." -sev "WARN"
+            write-host $Passresetresult
+  
+            $passreset = $false
+  
+          }
+        } catch{ 
+  
+          write-log -message "Cannot connect to Px SSH." -sev "WARN"
+  
         }
-      } catch{ 
-
-        write-log -message "Cannot connect to Px SSH." -sev "WARN"
-
+      } else {
+        ## Do some SSH based portal password reset for ERA
       }
     } catch {
       write-log -message "Password reset failure, retry $Resetpasscount out of 5" -sev "WARN"
@@ -142,9 +154,9 @@ Function SSH-ResetPass-Px {
   } until (($passreset -eq $true) -or $Resetpasscount -ge 5)
   if ($passreset -eq $true){
     $status = "Success"
-    write-log -message "Prism Password has been reset"
+    write-log -message "Password has been reset"
   } else {
-    write-log -message "Prism Password reset failure." -sev "ERROR"
+    write-log -message "Password reset failure." -sev "ERROR"
     $status = "Failed"
   }
   $resultobject =@{

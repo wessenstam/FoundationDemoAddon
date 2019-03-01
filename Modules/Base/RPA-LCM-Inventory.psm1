@@ -182,16 +182,19 @@ Function RPA-LCM-Inventory {
             $requestUri = "https://$($PCClusterIP):9440/console/#page/explore/settings/lcm_entity";
             $ie.navigate($requestUri);
             sleep $IEDelay;
+            sleep $IEDelay;
             ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "Options"}).click()
             while($ie.Busy){;
               Sleep -m 100;
             };
+            sleep $IEDelay;
             sleep $IEDelay;
             $optionssuccess = 1
            ($doc.IHTMLDocument3_getElementsByTagName("A") | where {$_.textContent -match "Perform"}).click()
            while($ie.Busy){;
              Sleep -m 100;
            };
+           sleep $IEDelay;
            sleep $IEDelay;
            } catch {
              write-log -message "There is still Options dropdown at this time, this is unexpected, retry.";         
@@ -209,20 +212,21 @@ Function RPA-LCM-Inventory {
           Sleep -m 100;
         };
         sleep $IEDelay;
-    
+        sleep $IEDelay;
         write-log -message "Submit for completion"; 
     
         ($doc.IHTMLDocument3_getElementsByTagName("Button") | where {$_.textContent -match "OK"}).click()
         while($ie.Busy){;
           Sleep -m 100;
         };
+        sleep $IEDelay;
       } catch {
     
         write-log -message "Not my first time";
     
       }
       $countsearching = 0
-      sleep 40
+      sleep 60
       do {
         $countsearching++
         try {
@@ -236,7 +240,7 @@ Function RPA-LCM-Inventory {
             Sleep -m 100;
           };
           sleep 20
-          $var = ($ie.document.IHTMLDocument2_body.outerhtml | where { $_ -match "The LCM Inventory operation is in progress"})
+          $var = ($ie.document.IHTMLDocument2_body.outerhtml | where { $_ -match "performing inventory"})
           
           
   

@@ -10,7 +10,10 @@ Function LIB-Config-DetailedDataSet {
   $StoragePoolName    = "SP01";
   $ImagesContainerName= "Images";
   $DisksContainerName = "Default";
+  $EraContainerName   = "ERA_01";
   $DC_ImageName       = "Windows 2012";
+  $MSSQLImage         = "MSSQL-2016-VM"
+  $ERA_ImageName      = "ERA";
   $SysprepPassword    = "Maandag01";
   $SENAME             = "$Sendername";
   $SEROLE             = "Systems Engineer";
@@ -34,18 +37,22 @@ Function LIB-Config-DetailedDataSet {
   $PCN1IPoctet = $startingIP + 4;
   $PCN2IPoctet = $startingIP + 5;
   $PCN3IPoctet = $startingIP + 6;
+  $ERA1IPoctet = $startingIP + 7;
   $DC1IPoctet  = $startingIP + 8;
   $DC2IPoctet  = $startingIP + 9;
   $FS1IntIPoctetstart  = $startingIP + 10;
   $FS1IntIPoctetend    = $startingIP + 13;
   $FS1extIPoctetstart  = $startingIP + 14;
   $FS1extIPoctetend    = $startingIP + 16;
-  $DHCPNW1Octetstart   = $startingIP + 17;
+  $MSSQLIPoctet        = $startingIP + 17;
+  $DHCPNW1Octetstart   = $startingIP + 30;
   $FS1_IntName = "FS1I-$($POCNAME)";
   $FS1_ExtName = "FS1E-$($POCNAME)";
   $PC1Name = "PC1-$($POCNAME)";
   $PC2Name = "PC2-$($POCNAME)";
   $PC3Name = "PC3-$($POCNAME)";
+  $ERA1Name= "ERA1-$($POCNAME)";
+  $MSSQL1  = "MSSQL1-$($POCNAME)";
   $DC1Name = "DC1-$($POCNAME)";
   $DC2Name = "DC2-$($POCNAME)";
   $Domainname = "$($POCNAME).nutanix.local";
@@ -54,6 +61,8 @@ Function LIB-Config-DetailedDataSet {
   [string]$PCN1IP     = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $PCN1IPoctet
   [string]$PCN2IP     = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $PCN2IPoctet
   [string]$PCN3IP     = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $PCN3IPoctet
+  [string]$ERA1IP     = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $ERA1IPoctet
+  [string]$MSSQLIP    = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $MSSQLIPoctet
   [string]$DC1IP      = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $DC1IPoctet
   [string]$DC2IP      = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $DC2IPoctet
   [string]$FS1IntIPst = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $FS1IntIPoctetstart
@@ -73,6 +82,8 @@ Function LIB-Config-DetailedDataSet {
   $Object | add-member Noteproperty PCNode1Name         $PC1Name;
   $Object | add-member Noteproperty PCNode2Name         $PC2Name;
   $Object | add-member Noteproperty PCNode3Name         $PC3Name;
+  $Object | add-member Noteproperty ERA1Name            $ERA1Name;
+  $Object | add-member Noteproperty ERA1IP              $ERA1IP;
   $Object | add-member Noteproperty DC1IP               $DC1IP;
   $Object | add-member Noteproperty DC2IP               $DC2IP;
   $Object | add-member Noteproperty DC1Name				      $DC1Name;
@@ -81,6 +92,11 @@ Function LIB-Config-DetailedDataSet {
   $Object | add-member Noteproperty Nw1name             $Nw1name;
   $Object | add-member Noteproperty Nw2name             $Nw2name 
   $Object | add-member Noteproperty DC_ImageName        $DC_ImageName;
+  $Object | add-member Noteproperty ERA_ImageName       $ERA_ImageName;
+  $Object | add-member Noteproperty ERA_MSSQLIP         $MSSQLIP;
+  $Object | add-member Noteproperty ERA_MSSQLName       $MSSQL1;
+  $Object | add-member Noteproperty ERA_MSSQLImage      $MSSQLImage;    
+  $Object | add-member Noteproperty EraContainerName    $EraContainerName;
   $Object | add-member Noteproperty SysprepPassword     $SysprepPassword;
   $Object | add-member Noteproperty SENAME              $SENAME;
   $Object | add-member Noteproperty SEROLE              $SEROLE;

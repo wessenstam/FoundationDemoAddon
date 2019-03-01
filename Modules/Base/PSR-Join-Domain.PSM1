@@ -1,4 +1,4 @@
-Function PSR-Add-DomainController {
+Function PSR-Join-Domain {
   param (
     [string]$SysprepPassword,
     [string]$IP,
@@ -64,8 +64,8 @@ Function PSR-Add-DomainController {
     } catch {
 
       write-log -message "Join domain almost always throws an error..."
-      
-      sleep 20
+
+      sleep 40
       try {
         $connect = invoke-command -computername $ip -credential $DomainCreds {
           (Get-WmiObject -Class Win32_ComputerSystem).PartOfDomain
@@ -87,68 +87,13 @@ Function PSR-Add-DomainController {
     sleep 30
   } until ($Joincount -ge 5 -or $connect -eq $true)
 
-  write-log -message "Installing AD software";
-  write-log -message "Awaiting completion install AD software";
-
-  do{
-    $installcount++
-    $connect = invoke-command -computername $ip -credential $DomainCreds { 
-      try {
-        Install-WindowsFeature -Name AD-Domain-Services,GPMC,DNS -IncludeManagementTools -Restart;
-      } catch {;
-        sleep 60;
-      };
-    };
-    sleep 180
-    if ($connect.Success -eq $true){
-
-      write-log -message "Install success";
-      write-log -message "Wait for reboot in 45 sec loop.";
-
-      $installsuccess = $true;
-    };
-  } until ($installcount -ge 5 -or $connect.Success -eq $true)
   
-  do {;
-    $test = test-connection -computername $ip -ea:0;
-    sleep 45;
-    $count++;
-  } until ($test[0].statuscode -eq 0 -or $count -eq 6 );
-  sleep 45
 
-  do{
-    $promotecount++
 
-    write-log -message "Promoting next DC in the domain";
-
-    $connect = invoke-command -computername $IP -credential $DomainCreds { 
-      try {
-        Install-ADDSDomainController -DomainName $args[0] -SafeModeAdministratorPassword $Args[1] -force -credential $args[2] -NoRebootOnCompletion;
-        shutdown -r -t 30
-      } catch {
-        "ERROR"
-      }
-      sleep 180
-    } -args $Domainname,$password,$DomainCreds -ea:0
-
-    if ($connect -notmatch "ERROR"){
-      $promotesuccess = $true
-
-      write-log -message "Promote Success, confirmed the end result." 
-
-    } else {
-
-      write-log -message "Promote failed, retrying." -sev "WARN"
-
-    }
-  } until ($promotecount -ge 5 -or $promotesuccess -eq $true)
-
-  write-log -message "Sleeping 60 sec";
-
-  if ($promotesuccess -eq $true -and $installsuccess -eq $true){
+  if ($Joinsucces -eq $true ){
     $status = "Success"
 
-    write-log -message "All Done here, ready for AD Content";
+    write-log -message "All Done here, ready for some Content";
     write-log -message "Please pump me full of lead.";
 
   } else {
