@@ -35,6 +35,7 @@ Questions can be sent to Michell.Grauwmans@Nutanix.com
 * Installs Flow
 * Installs XPlay Demo
 * Installs Workshop demo
+* Installs ERA Including MSSQL (Finalizing)
 
 Description:
 This kit is intented to run as a service, hence installer is not available yet.
