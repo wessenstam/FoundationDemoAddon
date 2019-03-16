@@ -4,12 +4,15 @@ Function Get-IncommingueueItem{
     [string] $modulepath,
     [string] $AutoQueueTimer,
     [string] $ready,
-    [string] $Incoming
+    [string] $Incoming,
+    [string] $manual
     )
   ## Version 2.0
   $item = $null
   write-host "$(get-date -format "hh:mm:ss") | INFO  | Terminating leftover outlook."
   get-process outlook | stop-process -ea:0
+  write-host "$(get-date -format "hh:mm:ss") | INFO  | Applying Outlook Settings."
+  reg import "C:\HostedPocProvisioningService\Binaries\Outlook.reg"
   write-host "$(get-date -format "hh:mm:ss") | INFO  | Starting outlook."
   Add-type -assembly "Microsoft.Office.Interop.Outlook" | out-null 
   $olFolders = "Microsoft.Office.Interop.Outlook.olDefaultFolders" -as [type] 
@@ -29,10 +32,12 @@ Function Get-IncommingueueItem{
     $DemoXenDeskT = 1
     $InstallEra = 1
     $DemoExchange = 1
-    $InstallKarbon = 0
+    $InstallKarbon = 1
     $DemoIISXPlay = 1
     $InstallFiles = 1
+    $slackbot = 0
     $SetupSSP = 1
+    $Move = 1
     $debug = 1
     $pcmode = 3
     $Body = $item.body
@@ -77,8 +82,8 @@ Function Get-IncommingueueItem{
       if ($line -match "^pcmode:[0-9]"){
         $pcmode = $line -replace("^pcmode:([0-9]).*", '$1')
       } 
-      if ($line -match "^queue:[0-9]"){
-        $queue = $line -replace("^queue:([0-9]).*", '$1')
+      if ($line -match "^queue:manual"){
+        $queue = "manual"
       } 
       if ($line -match "^karbon:[0-9]"){
         $InstallKarbon = $line -replace("^karbon:([0-9]).*", '$1')
@@ -107,15 +112,20 @@ Function Get-IncommingueueItem{
       if ($line -match "^lab:[0-9]"){
         $DemoLab = $line -replace("^lab:([0-9]).*", '$1')
       }
+      if ($line -match "^slackbot:[0-9]"){
+        $slackbot = $line -replace("^slackbot:([0-9]).*", '$1')
+      }
+      if ($line -match "^move:[0-9]"){
+        $move = $line -replace("^move:([0-9]).*", '$1')
+      }
       if ($line -match "^pcversion:"){
         $DemoLab = $line.split(":")[1];
       } else {
         $PCVersion = "Latest"
       }
+
     }
-    if ($InstallKarbon -eq 1){
-     $pcmode = 1
-    }
+
 
     $HYPERvISOR = $body | where { $_ -match "Hypervisor Version:"};
     $HYPERvISOR = ($HYPERvISOR -split(": "))[1];
@@ -168,16 +178,19 @@ Function Get-IncommingueueItem{
     $object | add-member Noteproperty EnableFlow          $EnableFlow;
     $object | add-member Noteproperty DemoXenDeskT        $DemoXenDeskT;
     $object | add-member Noteproperty InstallEra          $InstallEra;
+    $object | add-member Noteproperty InstallMove         $move
     $object | add-member Noteproperty DemoExchange        $DemoExchange;
     $object | add-member Noteproperty InstallKarbon       $InstallKarbon;
     $object | add-member Noteproperty DemoIISXPlay        $DemoIISXPlay;
     $object | add-member Noteproperty InstallFiles        $InstallFiles;
+    $object | add-member Noteproperty slackbot            $slackbot;
+    $object | add-member Noteproperty move                $move;
     $object | add-member Noteproperty UUID                $Guid.Guid;
     $item.delete()
-    if ($queue -eq 1){
-      $object | export-csv "$($queuepath)\$($Incoming)\$($POCname)-$($Guid.Guid).queue"
+    if ($queue -eq "Manual"){
+      $object | export-csv "$($queuepath)\$($Manual)\$($POCname)-$($Guid.Guid).queue"
     } else {
-      $object | export-csv "$($queuepath)\$($ready)\$($POCname)-$($Guid.Guid).queue"
+      $object | export-csv "$($queuepath)\$($Incoming)\$($POCname)-$($Guid.Guid).queue"
     }
     sleep 5
     $outlook.quit()

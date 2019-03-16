@@ -13,7 +13,7 @@ Function Validate-QueueItem {
   $AutoQueueTimer = "-$($AutoQueueTimer)"
   try{
     if ($processingmode -eq "Auto"){;
-      $item = get-item "$($queuepath)\$($incomingqueue)\*.queue" -ea:0 | where {$_.CreationTime -lt (get-date).addminutes($AutoQueueTimer) }| select -first 1; 
+      $item = get-item "$($queuepath)\$($incomingqueue)\*.queue" -ea:0 | where {$_.CreationTime -lt (get-date).addseconds(5) }| select -first 1; 
     } elseif ($processingmode -eq "NOW") {;
       $item = get-item "$($queuepath)\$($Readyqueue)\*.queue" -ea:0 | select -first 1;
     } else {
@@ -146,7 +146,7 @@ Function Validate-QueueItem {
     ##############
     ## Moving item after validation
     ##############
-    if ($validation -ne "OK" -and $processingmode -ne "SCAN"){;
+    if ($validation -ne "OK" -and $processingmode -ne "SCAN" -or ($object.queue -eq "Manual")){;
       $processingmode = "Manual";
     };
     if ($processingmode -eq "Manual"){;

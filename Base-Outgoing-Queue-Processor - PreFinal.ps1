@@ -1,9 +1,4 @@
-param (
-  $prodmode = "0"
-)
-
-$logging               = "C:\HostedPocProvisioningService\Jobs\Prod"
-$loggingdev            = "C:\HostedPocProvisioningService\Jobs\Dev"
+$logingdir             = "C:\HostedPocProvisioningService\Jobs\Active"
 $Archivelogingdir      = "C:\HostedPocProvisioningService\Jobs\Archive"
 $ModuleDir             = "C:\HostedPocProvisioningService\Modules\base"
 $daemons               = "C:\HostedPocProvisioningService\Daemons"
@@ -14,7 +9,7 @@ $BlueprintsPath        = "C:\HostedPocProvisioningService\BluePrints"
 $ArchiveQueue          = "Archive"
 $OutgoingQueue         = "Outgoing" 
 $SingleModelck         = "$($Lockdir)\Single.lck"
-
+$prodmode = 1
 ### Loading assemblies
 add-type @"
   using System.Net;
@@ -54,16 +49,13 @@ Import-Module "$($ModuleDir)\LIB-Connect-PSNutanix.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Lib-Check-Thread.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-IPAddressMath.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Get-OutgoingQueueItem.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Lib-Generate-SSHKey.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Send-Confirmation.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Server-SysprepXML.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\LIB-Spawn-Wrapper.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-REST-Tools" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Test-ClusterPrereq.psm1"  -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Write-Log.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\PSR-Add-DomainController.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\PSR-Create-Domain.psm1" -DisableNameChecking; 
-Import-Module "$($ModuleDir)\PSR-ERA-ConfigureMSSQL.psm1" -DisableNameChecking; 
 Import-Module "$($ModuleDir)\PSR-Generate-DomainContent.psm1" -DisableNameChecking; 
 Import-Module "$($ModuleDir)\PSR-Join-Domain.psm1" -DisableNameChecking; 
 Import-Module "$($ModuleDir)\REST-Enable-Calm-PE.psm1" -DisableNameChecking;
@@ -86,15 +78,9 @@ Import-Module "$($ModuleDir)\Wrap-Install-PC.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Create-SSP-Groups-Projects.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Import-XPlay-Demo.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Install-Era.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Wrap-Post-PC.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Wrap-Install-Second-DC.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Wrap-Update-PC-REST.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Wrap-Create-ADForest-PC.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Wrap-Create-KarbonCluster.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Wrap-Slack-Log.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Wrap-Import-Move-Demo.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Lib-Generate-SSHKey.psm1" -DisableNameChecking;
 
-#-----End Loader-----
+
 
 $exit = 0 
 $exitcount = 0
@@ -115,18 +101,17 @@ do {
   $alive = $null
   $singleusermode = (get-item $SingleModelck -ea:0).lastwritetime | where {$_ -ge (get-date).addminutes(-90)}
   if (!$singleusermode){
-    $datavar = LIB-Get-OutgoingQueueItem -queuepath $queuepath -archive $ArchiveQueue -outgoing $OutgoingQueue -debug -prodmode $prodmode
+    $datavar = LIB-Get-OutgoingQueueItem -queuepath $queuepath -archive $ArchiveQueue -outgoing $OutgoingQueue -prodmode $prodmode
+  } else {
+
+    write-log -message "Single user mode active, suspending thread."
+
   }
   $Incoming,
   $Archive
   $exitcount++
   if ($datavar){
-    if ($datavar.debug -le 1){
-      $logfile= "$($logging)\$($datavar.pocname)-$($datavar.UUID).log"
-    } else {
-      $logfile  = "$($loggingdev)\$($datavar.pocname)-$($datavar.UUID).log"
-    }
-    
+    $logfile  = "$($logingdir)\$($datavar.pocname)-$($datavar.UUID).log"
     $lockfile = "$($Lockdir)\$($datavar.pocname)-base.lck"
     start-transcript -path $logfile
     ### Sysprep
@@ -139,31 +124,20 @@ do {
     $ISOurlData2 = LIB-Config-ISOurlData -region "Backup"
 
     ### Full Data Set
-    $data = LIB-Config-DetailedDataSet -datavar $datavar -basedir $basedir
+    $data = LIB-Config-DetailedDataSet -datavar $datavar
     $data.syspreppassword = $datavar.PEPass
-    $datagen = $data
 
-    
-    write-log -message "Working with Dynamic dataset:" -sev "CHAPTER"
-    
+    write-log -message "Working with dynamic dataset:" -sev "CHAPTER"
+
     $datavar | fl
-    
-    write-log -message "Working with Generated dataset:" -sev "CHAPTER"
-    
-    $datagen | fl
-   
 
-    if ($datavar.slackbot -ge 1){
+    write-log -message "Working with deducted dataset:" -sev "CHAPTER"
 
-      write-log -message "Launching Slackbot" -sev "CHAPTER"
-
-      $LauchCommand = 'Wrap-Slack-Log -datagen $datagen -datavar $datavar -basepath $basedir -ParentLogfile ' + "`"$logfile`""
-      Lib-Spawn-Wrapper -Type "Slack" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Slack-Log.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
-    }
+    $data | fl
 
     write-log -message "Thread Started" -sev "CHAPTER"
     write-log -message "You are being served by Daemon ID $daemonID";
-    write-log -message "Processing queue item ID $($datavar.UUID)";
+    write-log -message "Ppocessing queue item ID $($datavar.UUID)";
 
     sleep 5     
     if ((get-item $lockfile -ea:0).lastwritetime -ge (get-date).addminutes(-90)){
@@ -204,7 +178,7 @@ do {
       write-log -message "Starting VPN" -sev "CHAPTER"
 
       LIB-Connect-NutanixVPN -VPNUser $datavar.VPNUser -VPNPass $datavar.vpnpass -VPNURL $datavar.vpnurl -mode "start"
-  
+      sleep 10
       $alive = LIB-Test-ClusterPrereq -PEClusterIP $datavar.PEClusterIP
     };
     if ($alive.Result -eq "Success"){
@@ -227,13 +201,6 @@ do {
         $datavar.SystemModel = $result.SystemModel
       } 
 
-      write-log -message "Downloading Prism Element Addon Software SSH ncli" -sev "CHAPTER"
-      
-      $result = SSH-Manage-SoftwarePE -ClusterPE_IP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -PCversion $datavar.PCVersion -filesversion $data.FilesVErsion -debug $datavar.debug -MODEL $datavar.SystemModel -wait 0
-      Lib-Check-Thread -status $Status.result -stage "Downloading Prism Element Addon Software SSH ncli" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
-      $datavar.PCVersion = $result.PCVersion -split ("`n") | select -last 1
-      $data.filesversion = $result.filesversion -split ("`n") | select -last 1
-
       write-log -message "Setting up Networking" -sev "CHAPTER"
 
       $status = SSH-Networking-Pe -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -Domainname $data.domainname -nw1dhcpstart $data.NW1DHCPStart -nw1gateway $datavar.InfraGateway -nw1subnet $datavar.InfraSubnetmask -nw1vlan $datavar.nw1vlan -nw1name $data.nw1name -nw2name $data.nw2name -nw2dhcpstart $datavar.nw2dhcpstart -nw2vlan $datavar.nw2vlan -nw2subnet $datavar.nw2subnet -nw2gateway $datavar.nw2gw -DC1IP $data.DC1IP -DC2IP $data.DC2IP
@@ -241,7 +208,7 @@ do {
 
       write-log -message "Setting up Storage" -sev "CHAPTER"
 
-      $status = SSH-Storage-Pe -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -StoragePoolName $data.StoragePoolName -KarbonContainername $data.KarbonContainername -DisksContainerName $data.DisksContainerName -ImagesContainerName $data.ImagesContainerName -ERAContainerName $data.ERAContainerName
+      $status = SSH-Storage-Pe -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -StoragePoolName $data.StoragePoolName -DisksContainerName $data.DisksContainerName -ImagesContainerName $data.ImagesContainerName -ERAContainerName $data.ERAContainerName
       Lib-Check-Thread -status $status.result -stage "Setting up Storage" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
 
       write-log -message "Uploading ISO Images" -sev "CHAPTER"
@@ -254,10 +221,18 @@ do {
       $Status = REST-Finalize-Px -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -ClusterPx_IP $datavar.PEClusterIP -debug $datavar.debug -sename $data.sename -serole $data.serole -SECompany $data.SECompany -EnablePulse $data.EnablePulse
       Lib-Check-Thread -status $Status.result -stage "Prism Element Prep (REST)" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
 
-      write-log -message "Running Prism Central Installer wrapper for Stage 1" -sev "CHAPTER"
+      write-log -message "Downloading Prism Element Addon Software SSH ncli" -sev "CHAPTER"
+      
+      $result = SSH-Manage-SoftwarePE -ClusterPE_IP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -PCversion $datavar.PCVersion -filesversion $data.FilesVErsion -debug $datavar.debug -MODEL $datavar.SystemModel 
+      Lib-Check-Thread -status $Status.result -stage "Downloading Prism Element Addon Software SSH ncli" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
+      $datavar.PCVersion = $result.PCVersion -split ("`n") | select -last 1
+      $data.filesversion = $result.filesversion -split ("`n") | select -last 1
+   
+      write-log -message "Running Prism Central Installer wrapper for preinstall" -sev "CHAPTER"
 
-      Wrap-Install-PC -datafixed $data -datavar $datavar -stage "1" -logfile $logfile
-      sleep 30
+      Wrap-Install-PC -datafixed $data -datavar $datavar -stage "1"
+
+      #### After PC install we have to wait for the DC image.
 
       write-log -message "Checking Images Disk upload status" -sev "CHAPTER"
 
@@ -270,17 +245,47 @@ do {
 
       write-log -message "Creating First DC VM" -sev "CHAPTER"
 
-      $VM1 = CMDPSR-Create-VM -mode "FixedIP" -DisksContainerName $data.DiskContainerName -Subnetmask $datavar.InfraSubnetmask -Sysprepfile $ServerSysprepfile -Networkname $data.Nw1Name -VMname $data.DC1Name -ImageName $data.DC_ImageName -cpu 4 -ram 8192 -VMip $data.DC1IP -VMgw $datavar.InfraGateway -DNSServer1 $data.DC1IP -DNSServer2 $data.DC2IP -SysprepPassword $data.SysprepPassword -debug $datavar.debug -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass
+      $VM1 = CMDPSR-Create-VM -DisksContainerName $data.DiskContainerName -Subnetmask $datavar.InfraSubnetmask -Sysprepfile $ServerSysprepfile -Networkname $data.Nw1Name -VMname $data.DC1Name -ImageName $data.DC_ImageName -cpu 4 -ram 8192 -VMip $data.DC1IP -VMgw $datavar.InfraGateway -DNSServer1 $data.DC1IP -DNSServer2 $data.DC2IP -SysprepPassword $data.SysprepPassword -debug $datavar.debug -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass
+     
+      write-log -message "Promoting First DC VM" -sev "CHAPTER"
 
-      write-log -message "Spawning Create Forest" -sev "CHAPTER"
+      PSR-Create-Domain -debug $datavar.debug -IP $data.DC1IP -SysprepPassword $data.SysprepPassword -DNSServer $datavar.DNSServer -Domainname $data.Domainname
 
-      $LauchCommand = 'Wrap-Create-ADForest-PC -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile'
-      Lib-Spawn-Wrapper -Type "Forest" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Create-ADForest-PC.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
-      sleep 10
+      write-log -message "Creating Second DC VM" -sev "CHAPTER"
+
+      $VM2 = CMDPSR-Create-VM -DisksContainerName $data.DiskContainerName -Subnetmask $datavar.InfraSubnetmask -Sysprepfile $ServerSysprepfile -Networkname $data.Nw1Name -VMname $data.DC2Name -ImageName $data.DC_ImageName -cpu 4 -ram 8192 -VMip $data.DC2IP -VMgw $datavar.InfraGateway -DNSServer1 $data.DC1IP -DNSServer2 $data.DC2IP -SysprepPassword $data.SysprepPassword -debug $datavar.debug -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass
+        
+      write-log -message "Join Second DC" -sev "CHAPTER"
+        
+      PSR-Add-DomainController -debug $datavar.debug -IP $data.DC2IP -SysprepPassword $data.SysprepPassword -DNSServer $datavar.DNSServer -Domainname $data.Domainname
 
       write-log -message "Set External Data Services IP" -sev "CHAPTER"
-
+     
       CMD-Set-DataservicesIP -DataServicesIP $data.DataServicesIP -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass
+
+      write-log -message "Generating AD Content" -sev "CHAPTER"
+
+      PSR-Generate-DomainContent -SysprepPassword $data.SysprepPassword -IP $data.DC1IP -Domainname $data.Domainname -debug $datavar.debug -sename $data.sename
+
+      write-log -message "Running PC Installer Wrapper for post install" -sev "CHAPTER"
+
+      Wrap-Install-PC -datafixed $data -datavar $datavar
+
+      write-log -message "Join Prism Element to the AD Domain" -sev "CHAPTER"
+
+      CMD-Join-PxtoADDomain -PEAdmin $datavar.PEAdmin -PEPass $datavar.PEPass -PxClusterIP $datavar.PEClusterIP -DC1_IPAddress $data.DC1IP -DC2_IPAddress $data.DC2IP -Domainname $data.Domainname -SysprepPassword $data.SysprepPassword -debug $datavar.debug
+
+      write-log -message "Join Prism Central to the AD Domain" -sev "CHAPTER"
+
+      CMD-Join-PxtoADDomain -PEAdmin $datavar.PEAdmin -PEPass $datavar.PEPass -PxClusterIP $data.PCClusterIP -DC1_IPAddress $data.DC1IP -DC2_IPAddress $data.DC2IP -Domainname $data.Domainname -SysprepPassword $data.SysprepPassword -debug $datavar.debug
+
+      write-log -message "Setting SMTP server for Prism Element" -sev "CHAPTER"
+   
+      CMD-Set-SMTPServerSettings -datagen $data -datavar $datavar -ip $datavar.PEClusterIP
+   
+      write-log -message "Setting SMTP server for Prism Central"
+
+      CMD-Set-SMTPServerSettings -datagen $data -datavar $datavar -ip $data.PCClusterIP
 
       if ($datavar.DemoXenDeskT -eq 1 -or $datavar.InstallFiles -eq 1){
         if ($datavar.SystemModel -notmatch "^SX"){
@@ -295,44 +300,69 @@ do {
 
         }
       }
-      if ($datavar.InstallEra -eq 1){
-
-        write-log -message "Spawning ERA Install" -sev "CHAPTER"
-
-        $LauchCommand = 'sleep 60;Wrap-Install-Era -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile'
-        Lib-Spawn-Wrapper -Type "ERA" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Install-Era.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
-
-      } 
-      
-      write-log -message "Running PC Installer Wrapper for Stage 2" -sev "CHAPTER"
-
-      Wrap-Install-PC -datafixed $data -datavar $datavar -stage "2" -logfile $logfile
-
-      write-log -message "Running Full LCM Prism Central Updates (REST)" -sev "CHAPTER"
-
-      Wrap-Update-PC-REST -datagen $data -datavar $datavar -logfile $logfile
-
-      write-log -message "Running PC Installer Wrapper for Post Install" -sev "CHAPTER"
-
-      $LauchCommand = 'Wrap-Post-PC -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile'
-      Lib-Spawn-Wrapper -Type "PostPC" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Post-PC.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
-      sleep 10
 
       write-log -message "Setting up Calm" -sev "CHAPTER"
 
       REST-Enable-Calm -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
 
+      write-log -message "Setting up RoleMapping for Prism Element" -sev "CHAPTER"
+
+      SSh-RoleMapping-Px -PxClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -domainname $data.domainname -debug $datavar.debug
+
+      write-log -message "Setting up RoleMapping for Prism Central" -sev "CHAPTER"
+
+      SSh-RoleMapping-Px -PxClusterIP $data.PCClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass -domainname $data.domainname -debug $datavar.debug
+      
+      write-log -message "Importing Images into Prism Central" -sev "CHAPTER"
+
+      REST-Image-Import-PC -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+
+      write-log -message "Running Full LCM Prism Central Updates (RPA)" -sev "CHAPTER"
+
+      $status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug -mode "Stage2"
+
+      if ($status.result -ne "Success"){
+
+        write-log -message "Running Full LCM Prism Central Updates (RPA), it needs help"
+
+        $status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug -mode "Stage1"
+        
+        write-log -message "All i do is sleep"
+
+        sleep 110;
+
+        write-log -message "Sleeping some more"
+
+        sleep 110;
+
+        $status = RPA-LCM-Inventory -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug -mode "Stage2"
+      }
+
+      if ($datavar.EnableFlow -eq 1){
+
+        write-log -message "Enable Flow (Option)" -sev "CHAPTER"
+  
+        REST-Enable-Flow -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
+      
+      } 
       if ($datavar.DemoLab -eq 1){
+
+        write-log -message "Installing Workshop Lab Settings Prism Element" -sev "CHAPTER"
+       
+        REST-WorkShopConfig-Px -ClusterPx_IP $datavar.PEClusterIP -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -POCName $datavar.POCname -VERSION $datavar.AOSVersion -Mode "PE"
  
         write-log -message "Installing Workshop Lab Settings Prism Central" -sev "CHAPTER"
        
         REST-WorkShopConfig-Px -ClusterPx_IP $data.PCClusterIP -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -POCName $datavar.POCname -VERSION $datavar.PCVersion -Mode "PC"
 
-        write-log -message "Installing Workshop Lab Settings Prism Element" -sev "CHAPTER"
-       
-        REST-WorkShopConfig-Px -ClusterPx_IP $datavar.PEClusterIP -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -POCName $datavar.POCname -VERSION $datavar.AOSVersion -Mode "PE"
-
       } 
+      if ($datavar.SetupSSP -eq 1){
+
+        write-log -message "Configuring SSP Portal with AD content" -sev "CHAPTER"
+
+        Wrap-Create-SSP-Groups-Projects -datafixed $data -datavar $datavar
+  
+      }
       if ($datavar.DemoXenDeskT -eq 1 -or $datavar.InstallFiles -eq 1){
         if ($datavar.SystemModel -notmatch "^SX"){
 
@@ -351,36 +381,33 @@ do {
         write-log -message "Not implemented"    
       
       }
+      if ($datavar.InstallEra -eq 1){
+
+        write-log -message "Installing ERA" -sev "CHAPTER"
+        
+       # Wrap-Install-Era -datagen $data -datavar $datavar -ServerSysprepfile $ServerSysprepfile
+      
+      } 
       if ($datavar.InstallKarbon -eq 1){
 
         write-log -message "Installing Karbon" -sev "CHAPTER"
-        $LauchCommand = 'Wrap-Create-KarbonCluster -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile'
-        Lib-Spawn-Wrapper -Type "Karbon" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Create-KarbonCluster.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
-        sleep 10
-        write-log -message "Spawning Karbon Cluster" -sev "CHAPTER"
-        
+
+        #REST-Enable-Karbon -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -PCClusterIP $data.PCClusterIP -debug $datavar.debug
       }
 
       if ($datavar.DemoIISXPlay -eq 1){
 
         write-log -message "Installing XPlay IIS CPU Scaling" -sev "CHAPTER"
         
-        $demo = Wrap-Import-XPlay-Demo -datagen $data -datavar $datavar -BlueprintsPath $BlueprintsPath -basedir $basedir -debug $datavar.debug
+        #$demo = Wrap-Import-XPlay-Demo -datagen $data -datavar $datavar -BlueprintsPath $BlueprintsPath -basedir $basedir
 
       }
-
-      write-log -message "Getting results from spawned demos" -sev "CHAPTER"
-
-      Lib-Get-Wrapper-Results -datavar $datavar -datagen $data -ModuleDir $ModuleDir -parentuuid "$($datavar.UUID)" -basedir $basedir -debug $datavar.debug
 
       write-log -message "Checking uploaded ISO Images" -sev "CHAPTER"
       
       $STATUS = CMD-Upload-ISOImages -ISOurlDataPrimair $ISOurlData1 -ISOurlDataBackup $ISOurlData2 -debug $datavar.debug -peadmin $datavar.PEAdmin -pepass $datavar.PEPass -PEClusterIP $datavar.PEClusterIP -ContainerName $data.ImagesContainerName -dcimage $data.DC_ImageName
       Lib-Check-Thread -status $status.result -stage "Uploading ISO Images" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
-      
-      write-log -message "Fire LCM Inventory for PE" -sev "CHAPTER"
 
-      REST-LCM-Perform-Inventory -datavar $datavar -datagen $data -mode "PE"
       LIB-Send-Confirmation -reciever $datavar.SenderEMail -datagen $data -datavar $datavar -mode "end" -debug $datavar.debug -logfile $logfile
   
       write-log -message "Done" -sev "CHAPTER"
@@ -395,11 +422,11 @@ do {
     $exit = 1
     try {
       Remove-item $lockfile
-      Remove-item $SingleModelck -ea:0
+      Remove-item $SingleModelck
       Connect-NutanixVPN -VPNUser $datavar.VPNUser -VPNPass $datavar.vpnpass -VPNURL $datavar.vpnurl -mode "stop"
     }catch {}
   } else {
-    write-log -message "No Files in queue or queue not in multi usermode, Production mode is $prodmode V2"
+    write-log -message "No Files in queue or queue not in multi usermode"
     write "Empty Daemon sleeping" | out-file "$($daemons)\$($daemonID).thread"
   };
   sleep 110

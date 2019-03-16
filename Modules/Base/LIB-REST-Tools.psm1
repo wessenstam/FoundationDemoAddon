@@ -33,6 +33,510 @@ Function REST-Query-ADGroups {
   }
 
   Return $task
+}
+
+Function REST-LCM-BuildPlan {
+  Param (
+    [object] $datagen,
+    [object] $datavar,
+    [string] $mode,
+    [object] $Updates
+  )
+  if ($mode -eq "PC"){
+    $clusterIP = $datagen.PCClusterIP
+  }  else {
+    $clusterip = $datavar.PEClusterIP
+  }  
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Executing LCM List Query"
+
+  $URL = "https://$($clusterip):9440/PrismGateway/services/rest/v1/genesis"
+
+  write-log -message "Using URL $URL"
+
+  $Start= '{"value":"{\".oid\":\"LifeCycleManager\",\".method\":\"lcm_framework_rpc\",\".kwargs\":{\"method_class\":\"LcmFramework\",\"method\":\"generate_plan\",\"args\":[\"http://download.nutanix.com/lcm/2.0\",['
+  $End = ']]}}"}'
+  
+  foreach ($item in $updates){
+    $update = "[\`"$($item.uuid)\`",\`"$($item.version)\`"],"
+    $start = $start + $update
+  }
+  $start = $start.Substring(0,$start.Length-1)
+  $start = $start + $end
+  [string]$json = $start
+  write-log -message "Using URL $json"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+Function REST-Import-Karbon-Blueprint {
+  Param (
+    [string] $BPfilepath,
+    [object] $datagen,
+    [object] $datavar,
+    [string] $subnetUUID,
+    [string] $ProjectUUID
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+
+  $jsonstring = get-content $BPfilepath
+
+  write-log -message "Replacing JSON String Variables"
+
+  #$jsonstring = $jsonstring -replace "--SSHPrivateKEYREF---", $($datagen.PrivateKey)
+  $jsonstring = $jsonstring -replace "---PUBLICKKEYREF---", $($datagen.PublicKey)
+  $jsonstring = $jsonstring -replace "---SUBNETREF---", $($subnetUUID)
+  $jsonstring = $jsonstring -replace "---PCIPREF---", $($datagen.PCClusterIP)
+  $jsonstring = $jsonstring -replace "---PROJECTREF---", $($ProjectUUID)
+  $jsonstring = $jsonstring -replace "---PECLUSTERNAMEREF---", $($datavar.POCNAME)
+  $jsonstring = $jsonstring -replace "---NETWORKNAMEREF---", $($datagen.NW1Name)
+  $jsonstring = $jsonstring -replace "---KARBONIPRANGEREF---", $($datagen.KarbonIPRange)
+  $jsonstring = $jsonstring -replace "---CONTAINERNAMEREF---", $($datagen.KarbonContainerName)
+  $jsonstring = $jsonstring -replace '---PCPASSREF---', ''
+  $jsonstring = $jsonstring -replace '---INSTANCEPASSWORD---', ''
+  $jsonstring = $jsonstring -replace '---PCUSERNAMEREF---', $($datavar.PEAdmin)
+  $jsonstring = $jsonstring -replace '"value": "---SSHPrivateKEYREF---"', ''
+  $jsonstring = $jsonstring -replace '"is_secret_modified": true },', '"is_secret_modified": false }'
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/import_json"
+
+  if ($datavar.debug -eq 2){
+    $jsonstring | out-file "C:\temp\Karbon.json"
+  }
+
+  write-log -message "Executing Import"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $jsonstring -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $jsonstring -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+
+
+Function REST-Update-Karbon-Blueprint {
+  Param (
+    [object] $BPObject,
+    [string] $BlueprintUUID,
+    [object] $datagen,
+    [object] $Keyobject,
+    [object] $DomainObject,
+    [object] $instancePWobject,
+    [object] $PCPassObject,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+
+foreach ($line in $datagen.PrivateKey){
+  [string]$Keystring += $line + '\n' 
+}
+$Keystring = $Keystring.Substring(0,$Keystring.Length-2)
+$JSON1 = @"
+{
+ "credential_definition_list":  [
+    {
+    "username":  "centos",
+    "description":  "",
+    "uuid":  "$($Keyobject.uuid)",
+    "secret":  {
+                   "attrs":  {
+                                 "is_secret_modified":  true,
+                                 "secret_reference":  "$($Keyobject.secret.attrs.secret_reference.uuid)"
+                             },
+                   "value": "$Keystring" 
+               },
+    "editables":  {
+                      "username":  true
+                  },
+    "type":  "KEY",
+    "name":  "SSH_KEY"
+   }
+  ]
+}
+"@
+
+$JSON2 = @"
+{
+    "val_type":  "STRING",
+    "description":  "",
+    "uuid":  "$($instancePWobject.uuid)",
+    "label":  "",
+    "attrs":  {
+                  "is_secret_modified":  true,
+                  "secret_reference":  {
+                                           "uuid":  "$($instancePWobject.secret.attrs.secret_reference.uuid)"
+                                       }
+              },
+    "type":  "SECRET",
+    "name":  "INSTANCE_PASSWORD",
+    "value" : "$($datavar.PEPass)"
+}
+"@
+$JSON3 = @"
+{
+    "val_type":  "STRING",
+    "description":  "",
+    "uuid":  "$($PCPassObject.uuid)",
+    "label":  "",
+    "attrs":  {
+                  "is_secret_modified":  true,
+                  "secret_reference":  {
+                                           "uuid":  "$($PCPassObject.secret.attrs.secret_reference.uuid)"
+                                       }
+              },
+    "type":  "SECRET",
+    "name":  "PC_PASSWORD",
+    "value" : "$($datavar.PEPass)"
+}
+"@
+  $json
+  $newBPObject = $BPObject
+  $newBPObject.psobject.members.remove("Status")
+  $newBPObject.spec.resources.credential_definition_list = ($JSON1 | convertfrom-json).credential_definition_list
+
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "PC_PASSWORD"}) | add-member noteproperty value $datavar.pepass
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "INSTANCE_PASSWORD"}) | add-member noteproperty value $datavar.pepass
+
+
+  $json = $newBPObject | convertto-json -depth 100
+  $json = $json -replace '"---REPLACEME---"', $Keystring
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BlueprintUUID)"
+
+  if ($datavar.debug -eq 2){
+    $json | out-file "C:\temp\Karbon3.json"
+  }
+  write-log -message "Updating Import with Creds for $BlueprintUUID"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+    Return $RespErr
+  }
+
+  Return $task
+} 
+
+Function REST-Import-Move-Blueprint {
+  Param (
+    [string] $BPfilepath,
+    [object] $datagen,
+    [object] $datavar,
+    [string] $subnetUUID,
+    [object] $image,
+    [string] $ProjectUUID
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+
+  $jsonstring = get-content $BPfilepath
+
+  write-log -message "Replacing JSON String Variables"
+
+  $jsonstring = $jsonstring -replace "---IMAGEUUIDREF---", $($image.metadata.uuid)
+  $jsonstring = $jsonstring -replace "---IMAGENAMEREF---", $($datagen.Move_ImageName)
+  $jsonstring = $jsonstring -replace "---SUBNETREF---", $($subnetUUID)
+  $jsonstring = $jsonstring -replace "---PROJECTREF---", $($ProjectUUID)
+  $jsonstring = $jsonstring -replace "---MOVEVMNAME---", $($datagen.Move_VMName)
+  $jsonstring = $jsonstring -replace "---MOVEVMIP---", $($datagen.MoveIP)
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/import_json"
+
+  if ($datavar.debug -eq 2){
+    $jsonstring | out-file "C:\temp\Move1.json"
+  }
+
+  write-log -message "Executing Import"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $jsonstring -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $jsonstring -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+
+
+Function REST-Update-Move-Blueprint {
+  Param (
+    [object] $BPObject,
+    [string] $BlueprintUUID,
+    [object] $datagen,
+    [object] $Keyobject,
+    [object] $DomainObject,
+    [object] $instancePWobject,
+    [object] $PCPassObject,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+
+  $newBPObject = $BPObject
+  $newBPObject.psobject.members.remove("Status")
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "LOCAL"}).secret | add-member noteproperty value $datavar.pepass
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "LOCAL"}).secret.attrs.is_secret_modified = 'true'
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "move"}).secret | add-member noteproperty value $datavar.pepass
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "move"}).secret.attrs.is_secret_modified = 'true'
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "move_password"}) | add-member noteproperty value $datavar.pepass
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "move_password"}).attrs.is_secret_modified = 'true'
+
+
+  $json = $newBPObject | convertto-json -depth 100
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BlueprintUUID)"
+
+  if ($datavar.debug -eq 2){
+    $json | out-file "C:\temp\Move2.json"
+  }
+  write-log -message "Updating Import with Creds for $BlueprintUUID"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+    Return $RespErr
+  }
+
+  Return $task
+} 
+
+
+
+Function REST-LCM-Install {
+  Param (
+    [object] $datagen,
+    [object] $datavar,
+    [string] $mode,
+    [object] $Updates
+  )
+  if ($mode -eq "PC"){
+    $clusterIP = $datagen.PCClusterIP
+  }  else {
+    $clusterip = $datavar.PEClusterIP
+  }  
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Executing LCM List Query"
+
+  $URL = "https://$($clusterip):9440/PrismGateway/services/rest/v1/genesis"
+
+  write-log -message "Using URL $URL"
+
+  $Start= '{"value":"{\".oid\":\"LifeCycleManager\",\".method\":\"lcm_framework_rpc\",\".kwargs\":{\"method_class\":\"LcmFramework\",\"method\":\"perform_update\",\"args\":[\"http://download.nutanix.com/lcm/2.0\",['
+  $End = ']]}}"}'
+  
+  foreach ($item in $updates){
+    $update = "[\`"$($item.uuid)\`",\`"$($item.version)\`"],"
+    $start = $start + $update
+  }
+  $start = $start.Substring(0,$start.Length-1)
+  $start = $start + $end
+  [string]$json = $start
+  write-log -message "Using URL $json"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+Function REST-LCM-Query-Groups {
+  Param (
+    [object] $datagen,
+    [object] $datavar,
+    [string] $mode
+  )
+  if ($mode -eq "PC"){
+    $clusterIP = $datagen.PCClusterIP
+  }  else {
+    $clusterip = $datavar.PEClusterIP
+  }  
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Executing LCM List Query"
+
+  $URL = "https://$($clusterip):9440/api/nutanix/v3/groups"
+
+  write-log -message "Using URL $URL"
+
+$Payload= @"
+{
+  "entity_type": "lcm_available_version",
+  "grouping_attribute": "entity_uuid",
+  "group_member_count": 1000,
+  "group_member_attributes": [
+    {
+      "attribute": "uuid"
+    },
+    {
+      "attribute": "entity_uuid"
+    },
+    {
+      "attribute": "entity_class"
+    },
+    {
+      "attribute": "status"
+    },
+    {
+      "attribute": "version"
+    },
+    {
+      "attribute": "dependencies"
+    },
+    {
+      "attribute": "order"
+    }
+  ]
+}
+"@ 
+
+  $JSON = $Payload 
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  }
+  write-log -message "We found $($task.group_results.entity_results.count) items."
+
+  Return $task
+} 
+
+Function REST-LCM-Perform-Inventory {
+  Param (
+    [object] $datavar,
+    [object] $datagen,
+    [string] $mode
+  )
+  if ($mode -eq "PC"){
+    $clusterIP = $datagen.PCClusterIP
+  }  else {
+    $clusterip = $datavar.PEClusterIP
+  }  
+  $credPair = "$($datavar.peadmin):$($datavar.pepass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+  write-log -message "Connecting to $clusterip"
+  write-log -message "Mode is $mode"
+  write-log -message "SE Name is $($datagen.sename)"
+  $URL = "https://$($clusterip):9440/PrismGateway/services/rest/v1/genesis"
+  $json1 = @"
+{
+    "value":"{\".oid\":\"LifeCycleManager\",\".method\":\"lcm_framework_rpc\",\".kwargs\":{\"method_class\":\"LcmFramework\",\"method\":\"configure\",\"args\":[\"http://download.nutanix.com/lcm/2.0\",null,null,true]}}"
+}
+"@
+  $json2 = @"
+{
+    "value":"{\".oid\":\"LifeCycleManager\",\".method\":\"lcm_framework_rpc\",\".kwargs\":{\"method_class\":\"LcmFramework\",\"method\":\"perform_inventory\",\"args\":[\"http://download.nutanix.com/lcm/2.0\"]}}"
+}
+"@
+  try{
+    $setAutoUpdate = Invoke-RestMethod -Uri $URL -method "post" -body $JSON1 -ContentType 'application/json' -headers $headers;
+    $Inventory = Invoke-RestMethod -Uri $URL -method "post" -body $JSON2 -ContentType 'application/json' -headers $headers;
+  
+    write-log -message "AutoUpdated set and Inventory started"
+  } catch {
+    sleep 10
+    write-log -message "Going once"
+    $setAutoUpdate = Invoke-RestMethod -Uri $URL -method "post" -body $JSON1 -ContentType 'application/json' -headers $headers;
+    $Inventory = Invoke-RestMethod -Uri $URL -method "post" -body $JSON2 -ContentType 'application/json' -headers $headers;
+  }
+  Return $Inventory
+
+} 
+
+Function REST-Task-List {
+  Param (
+    [string] $ClusterPC_IP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $debug
+  )
+  ## This is silent on purpose
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+  $URL = "https://$($ClusterPC_IP):9440/api/nutanix/v3/tasks/list"
+  $Payload= @{
+    kind="task"
+    offset=0
+    length=999
+  } 
+
+  $JSON = $Payload | convertto-json
+  try { 
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+
+    write-log -message "Going Once"
+
+  }
+  Return $task
 } 
 
 Function REST-Query-ADGroup {
@@ -102,7 +606,19 @@ Function REST-Query-Subnet {
     write-log -message "Going once"
 
   }
+  if ($task.entities.count -eq 0){
 
+    write-log -message "0? Let me try that again after a small nap."
+
+    do {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+      sleep 30
+      $count++
+
+      write-log -message "Cycle $count Getting Subnets, current items found is $($task.entities.count)"
+    } until ($count -ge 10 -or $task.entities.count -ge 1)
+  }
+  write-log -message "We found $($task.entities.count) items."
   $result = $task.entities | where {$_.spec.name -eq $networkname}
   Return $result
 } 
@@ -144,8 +660,15 @@ Function REST-Create-UserGroup {
   }
 }
 "@
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  }catch{
 
-  $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    write-log -message "Going once"
+
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  }
   Return $task
 } 
 
@@ -181,8 +704,21 @@ Function REST-Query-Cluster {
     sleep 10
     $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
   }
-  $filter = $task.entities | where {$_.spec.resources.network.external_ip -eq $targetIP -or $_.spec.resources.network.external_ip -eq $null}
+  if ($task.entities.count -eq 0){
 
+    write-log -message "0? Let me try that again after a small nap."
+
+    do {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+      sleep 30
+      $count++
+
+      write-log -message "Cycle $count Getting Clusters, current items found is $($task.entities.count)"
+    } until ($count -ge 10 -or $task.entities.count -ge 1)
+  }
+  write-log -message "We found $($task.entities.count) clusters, filtering."
+
+  $filter = $task.entities | where {$_.spec.resources.network.external_ip -eq $targetIP -or $_.spec.resources.network.external_ip }
   Return $filter
 } 
 
@@ -215,6 +751,247 @@ Function REST-Query-DetailCluster {
   Return $task
 } 
 
+
+Function REST-ERA-GetProfiles {
+  Param (
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Query All ERA Profiles"
+
+  $URL = "https://$($EraIP):8443/era/v0.8/profiles"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "GET" -headers $headers;
+  } catch {
+
+    write-log -message "Going once"
+
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "GET"  -headers $headers;
+  }
+
+  Return $task
+} 
+
+
+Function REST-ERA-ProvisionDatabase {
+  Param (
+    [object] $dbserver,
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [object] $ERACluster,
+    [object] $SLA,
+    [string] $debug,
+    [string] $publicSSHKey,
+    [string] $networkProfileId,
+    [string] $SoftwareProfileID,
+    [string] $computeProfileId,
+    [string] $dbParameterProfileId,
+    [string] $Type,
+    [string] $Port,
+    [string] $Databasename
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Using databasename DB_$($dbservername)"
+  write-log -message "Using NetworkID $($networkProfileId)"
+  write-log -message "Using ComputeID $($computeProfileId)"
+  write-log -message "Using DBParamID $($dbParameterProfileId)"
+  write-log -message "Using Databasename  $($Databasename)"
+  write-log -message "Using Type $($Type)"
+  write-log -message "Using Port $($Port)"
+
+  $URL = "https://$($EraIP):8443/era/v0.8/databases/provision"
+  $JSON = @"
+{
+  "databaseType": "$($Type)",
+  "databaseName": "$($databasename)",
+  "clusterId": "$($ERACluster.id)",
+  "dbParameterProfileId": "$($dbParameterProfileId)",
+  "useExistingDBserver": true,
+  "timeMachineInfo": {
+    "name": "$($Type)_TM",
+    "description": "",
+    "slaId": "$($SLA.ID)",
+    "schedule": {
+      "snapshotTimeOfDay": {
+        "hours": 1,
+        "minutes": 0,
+        "seconds": 0
+      },
+      "continuousSchedule": {
+        "enabled": true,
+        "logBackupInterval": 30,
+        "snapshotsPerDay": 1
+      },
+      "weeklySchedule": {
+        "enabled": true,
+        "dayOfWeek": "FRIDAY"
+      },
+      "monthlySchedule": {
+        "enabled": true,
+        "dayOfMonth": "8"
+      },
+      "quartelySchedule": {
+        "enabled": true,
+        "startMonth": "JANUARY",
+        "dayOfMonth": "8"
+      },
+      "yearlySchedule": {
+        "enabled": false,
+        "dayOfMonth": 31,
+        "month": "DECEMBER"
+      }
+    },
+    "tags": [],
+    "autoTuneLogDrive": true
+  },
+  "provisionInfo": [{
+    "name": "application_type",
+    "value": "$($Type)"
+  }, {
+    "name": "listener_port",
+    "value": "$($Port)"
+  }, {
+    "name": "database_size",
+    "value": "200"
+  }, {
+    "name": "working_dir",
+    "value": "/tmp"
+  }, {
+    "name": "auto_tune_staging_drive",
+    "value": true
+  }, {
+    "name": "host_ip",
+    "value": "$($dbserver.ip)"
+  }, {
+    "name": "db_password",
+    "value": "$($Clpassword)"
+  }]
+}
+"@
+  if ($debug -ge 2){
+    $json | out-file c:\temp\ERAMDBcr.json
+  }
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  } catch{
+
+    write-log -message "Going once."
+
+    sleep 60
+    try {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    } catch {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    }
+  }
+  Return $task
+} 
+
+
+
+Function REST-ERA-ProvisionServer {
+  Param (
+    [string] $dbservername,
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [object] $ERACluster,
+    [object] $SLA,
+    [string] $debug,
+    [string] $publicSSHKey,
+    [string] $networkProfileId,
+    [string] $SoftwareProfileID,
+    [string] $computeProfileId,
+    [string] $dbParameterProfileId,
+    [string] $Type,
+    [string] $Port,
+    [string] $POCNAME
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Building Maria Server Provision JSON"
+  write-log -message "Using databasename DB_$($dbservername)"
+  write-log -message "Using NetworkID $($networkProfileId)"
+  write-log -message "Using ComputeID $($computeProfileId)"
+  write-log -message "Using DBParamID $($dbParameterProfileId)"
+  write-log -message "Using POC Name  $($POCNAME)"  
+  write-log -message "Using SoftwareProfile  $($SoftwareProfileID)"
+  write-log -message "Using Type $($Type)"
+  write-log -message "Using Port $($Port)"
+
+  $URL = "https://$($EraIP):8443/era/v0.8/dbservers/create"
+  $JSON = @"
+{
+  "actionArguments": [{
+    "name": "vm_name",
+    "value": "$($dbservername)"
+  }, {
+    "name": "working_dir",
+    "value": "/tmp"
+  }, {
+    "name": "era_deploy_base",
+    "value": "/opt/era_base"
+  }, {
+    "name": "compute_profile_id",
+    "value": "$($computeProfileId)"
+  }, {
+    "name": "client_public_key",
+    "value": "$($publicSSHKey)"
+  }, {
+    "name": "network_profile_id",
+    "value": "$($networkProfileId)"
+  }],
+  "description": "Launches the rocket",
+  "clusterId": "$($ERACluster.id)",
+  "softwareProfileId": "$($SoftwareProfileID)"
+}
+"@
+  if ($debug -ge 2){
+    $json | out-file c:\temp\ERADB.json
+  }
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  } catch{
+
+    write-log -message "Going once."
+
+    sleep 60
+    try {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    } catch {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    }
+  }
+  Return $task
+} 
+
+
+
+
+
 Function REST-ERA-AcceptEULA {
   Param (
     [string] $EraIP,
@@ -240,13 +1017,394 @@ Function REST-ERA-AcceptEULA {
   try {
     $task = Invoke-RestMethod -Uri $URL -method "POST" -body $JSON -ContentType 'application/json' -headers $headers;
   } catch {
-    sleep 10
+
+    write-log -message "Going once"
+
+    sleep 60
     $task = Invoke-RestMethod -Uri $URL -method "POST" -body $JSON -ContentType 'application/json' -headers $headers;
+  }  
+  Return $task
+} 
+
+Function REST-ERA-GetDBServers {
+  Param (
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $($datavar.debug)";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Get ERA DB Servers"
+
+  $URL = "https://$($EraIP):8443/era/v0.8/dbservers"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "GET" -headers $headers;
+  } catch {
+
+    write-log -message "Going once"
+
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "GET"  -headers $headers;
+  }
+
+  Return $task
+} 
+
+
+
+Function REST-ERA-GetProfiles {
+  Param (
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $($datavar.debug)";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Get ERA Profiles"
+
+  $URL = "https://$($EraIP):8443/era/v0.8/profiles"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "GET" -headers $headers;
+  } catch {
+
+    write-log -message "Going once"
+
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "GET"  -headers $headers;
+  }
+
+  Return $task
+} 
+
+
+Function REST-ERA-PostGresNWProfileCreate {
+  Param (
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $NetworkName,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $($datavar.debug)";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Building PostGres Network Creation JSON"
+
+  $URL = "https://$($EraIP):8443/era/v0.8/profiles"
+  $JSON = @"
+{
+  "engineType": "postgres_database",
+  "type": "Network",
+  "topology": "ALL",
+  "dbVersion": "ALL",
+  "properties": [{
+    "name": "VLAN_NAME",
+    "value": "$($NetworkName)",
+    "description": "Name of the vLAN"
+  }],
+  "name": "PostGresNW"
+}
+"@
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  } catch {
+
+    write-log -message "Going once"
+
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+Function REST-ERA-MariaNWProfileCreate {
+  Param (
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $NetworkName,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $($datavar.debug)";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Building MariaDB Network Creation JSON"
+
+  $URL = "https://$($EraIP):8443/era/v0.8/profiles"
+  $JSON = @"
+{
+  "engineType": "mariadb_database",
+  "type": "Network",
+  "topology": "ALL",
+  "dbVersion": "ALL",
+  "properties": [{
+    "name": "VLAN_NAME",
+    "value": "$($NetworkName)",
+    "description": "Name of the vLAN"
+  }],
+  "name": "MariaNW"
+}
+"@
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+
+    write-log -message "Going once"
+  }
+
+  Return $task
+} 
+
+Function REST-ERA-RegisterMSSQL-ERA {
+  Param (
+    $dbname,
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [object] $ERACluster,
+    [string] $MSQLVMIP,
+    [object] $SLA,
+    [string] $sysprepPass,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Building MSSQL Server Registration JSON"
+  write-log -message "Using databasename $($dbname)"
+
+  $URL = "https://$($EraIP):8443/era/v0.8/databases"
+  $JSON = @"
+{
+  "vmAdd": true,
+  "applicationInfo": [{
+    "name": "application_type",
+    "value": "sqlserver_database"
+  }, {
+    "name": "era_manage_log",
+    "value": true
+  }, {
+    "name": "sql_login_used",
+    "value": false
+  }, {
+    "name": "same_as_admin",
+    "value": true
+  }, {
+    "name": "create_era_drive",
+    "value": true
+  }, {
+    "name": "recovery_model",
+    "value": "Full-logged"
+  }, {
+    "name": "era_deploy_base",
+    "value": "C:\\NTNX\\ERA_BASE"
+  }, {
+    "name": "vm_ip",
+    "value": "$($MSQLVMIP)"
+  }, {
+    "name": "vm_username",
+    "value": "administrator"
+  }, {
+    "name": "vm_password",
+    "value": "$($sysprepPass)"
+  }, {
+    "name": "instance_name",
+    "value": "MSSQLSERVER"
+  }, {
+    "name": "database_name",
+    "value": "$($dbname)"
+  }, {
+    "name": "sysadmin_username_win",
+    "value": "administrator"
+  }, {
+    "name": "sysadmin_password_win",
+    "value": "$($sysprepPass)"
+  }],
+  "forcedInstall": true,
+  "clusterId": "$($ERACluster.id)",
+  "tags": [],
+  "timeMachineInfo": {
+    "name": "$($dbname)_TM",
+    "description": "",
+    "slaId": "$($SLA.ID)",
+    "schedule": {
+      "snapshotTimeOfDay": {
+        "hours": 1,
+        "minutes": 0,
+        "seconds": 0
+      },
+      "continuousSchedule": {
+        "enabled": true,
+        "logBackupInterval": 30,
+        "snapshotsPerDay": 1
+      },
+      "weeklySchedule": {
+        "enabled": true,
+        "dayOfWeek": "SUNDAY"
+      },
+      "monthlySchedule": {
+        "enabled": true,
+        "dayOfMonth": "3"
+      },
+      "quartelySchedule": {
+        "enabled": true,
+        "startMonth": "JANUARY",
+        "dayOfMonth": "3"
+      },
+      "yearlySchedule": {
+        "enabled": false,
+        "dayOfMonth": 31,
+        "month": "DECEMBER"
+      }
+    },
+    "tags": [],
+    "autoTuneLogDrive": true
+  },
+  "applicationSlaName": "$($sla.name)",
+  "applicationType": "sqlserver_database",
+  "autoTuneStagingDrive": false,
+  "eraBaseDirectory": "C:\\NTNX\\ERA_BASE",
+  "applicationHost": "$($MSQLVMIP)",
+  "vmIp": "$($MSQLVMIP)",
+  "vmUsername": "administrator",
+  "vmPassword": "$($sysprepPass)",
+  "applicationName": "$($dbname)"
+}
+"@
+  if ($debug -ge 2){
+    $json | out-file c:\temp\ERAMSSQL.json
+  }
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  } catch{
+
+    write-log -message "Going once."
+
+    sleep 60
+    try {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    } catch {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    }
+  }
+  Return $task
+} 
+
+
+
+
+
+Function REST-ERA-GetSLAs {
+  Param (
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $uuid,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $($datavar.debug)";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  $URL = "https://$($EraIP):8443/era/v0.8/slas"
+
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "GET" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "GET" -body $JSON -ContentType 'application/json' -headers $headers;
 
     write-log -message "Going once"
   }  
   Return $task
 } 
+
+Function REST-ERA-Operations {
+  Param (
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $uuid,
+    [string] $debug
+  )
+  #this is a silent module on purpose
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  $URL = "https://$($EraIP):8443/era/v0.8/operations/short-info"
+
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "GET" -body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "GET" -body $JSON -ContentType 'application/json' -headers $headers;
+
+    write-log -message "Going once"
+  }  
+  Return $task
+} 
+
+function Slack-Send-DirectMessage {
+  param(
+    $user,
+    $token,
+    $message
+  )
+  $headers = @{ Authorization = "Bearer $token" }  
+
+  $body = @"
+{
+    "token": "$token",
+    "user": "$user",
+}
+"@ 
+  $directopen = Invoke-RestMethod -Uri https://slack.com/api/im.open -method "POST" -Body $body -ContentType 'application/json' -headers $headers;
+  #
+
+  $body = @"
+{
+    "text": "$message",
+    "token": "$token",
+    "channel": "$($directopen.channel.id)",
+}
+"@ 
+
+  $directsend = Invoke-RestMethod -Uri https://slack.com/api/chat.postMessage -method "POST" -Body $body -ContentType 'application/json' -headers $headers;
+
+}
 
 Function REST-Query-Projects {
   Param (
@@ -282,6 +1440,235 @@ Function REST-Query-Projects {
 
   Return $task
 } 
+Function REST-Query-Calm-Apps {
+  Param (
+    [object] $datavar,
+    [object] $datagen
+  )
+
+  write-log -message "Debug level is $($datavar.debug)";
+  write-log -message "Building Credential object"
+  $credPair = "$($datavar.peadmin):$($datavar.pepass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Query Calm Apps"
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/apps/list"
+
+  write-log -message "Using URL $URL"
+  write-log -message "Using IP $($datagen.PCClusterIP)"
+
+  $Payload= @{
+    kind="app"
+    offset=0
+    length=250
+  } 
+
+  $JSON = $Payload | convertto-json
+  write-host  $JSON
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "POST" -Body $JSON -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "POST" -Body $JSON -ContentType 'application/json' -headers $headers;
+
+    write-log -message "Going once"
+  }  
+  Return $task
+} 
+
+Function REST-Query-Calm-DetailedApps {
+  Param (
+    [object] $datavar,
+    [object] $datagen,
+    [string] $uuid
+  )
+
+  write-log -message "Debug level is $($datavar.debug)";
+  write-log -message "Building Credential object"
+  $credPair = "$($datavar.peadmin):$($datavar.pepass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Query Calm $($UUID) App Detailed"
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/apps/$($UUID)"
+
+  write-log -message "Using URL $URL"
+  write-log -message "Using IP $($datagen.PCClusterIP)"
+
+  $JSON = $Payload | convertto-json
+  write-host  $JSON
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "GET" -headers $headers;
+  } catch {
+    sleep 10
+    $task = Invoke-RestMethod -Uri $URL -method "GET" -headers $headers;
+
+    write-log -message "Going once"
+  }  
+  Return $task
+} 
+
+Function REST-Move-BluePrint-LaunchAPP {
+  Param (
+    [object] $appdetail,
+    [object] $action,
+    [object] $datagen,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Replacing JSON String Variables"
+$Json = @"
+{
+  "spec": {
+    "target_uuid": "$($appdetail.metadata.uuid)",
+    "target_kind": "Application",
+    "args": []
+  },
+  "api_version": "3.0",
+  "metadata": {
+    "project_reference": {
+      "kind": "project",
+      "uuid": "$($appdetail.metadata.project_reference.uuid)"
+    },
+    "name": "Nutanix Move",
+    "spec_version": 5,
+    "kind": "app"
+  }
+}
+"@ 
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/apps/$($appdetail.metadata.uuid)/actions/$($Action.uuid)/run"
+
+  write-log -message "Executing App Launch for APP $($appdetail.metadata.uuid) using Action ID $($Action.uuid)"
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+Function REST-Move-Login {
+  Param (
+    [object] $appdetail,
+    [object] $action,
+    [object] $datagen,
+    [object] $datavar
+  )
+
+  $credPair = "nutanix:nutanix/4u"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Replacing JSON String Variables"
+$Json = @"
+{
+    "username":"nutanix",
+    "password":"nutanix/4u"
+}
+"@ 
+  $URL = "https://$($datagen.MoveIP)/v1/users/login"
+
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+Function REST-Move-EULA {
+  Param (
+    [object] $Token,
+    [object] $datagen,
+    [object] $datavar
+  )
+
+  $headers = @{ Authorization = $token.token }
+
+  write-log -message "Replacing JSON String Variables"
+$Json = @"
+{
+  "EulaAccepted":true,
+  "TelemetryOn":true,
+  "NewPassword":"$($datavar.PEPass)"
+}
+"@ 
+  $URL = "https://$($datagen.MoveIP)/v1/configure"
+
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+Function REST-Move-SetTarget {
+  Param (
+    [object] $Token,
+    [object] $datagen,
+    [object] $datavar
+  )
+
+  $headers = @{ Authorization = $token.token }
+
+  write-log -message "Replacing JSON String Variables"
+$Json = @"
+{
+  "IPorFQDN":"$($datavar.PEClusterIP)",
+  "Name":"$($datavar.POCName)",
+  "Password":"$($datavar.pepass)",
+  "Username":"$($datavar.peadmin)"
+}
+"@ 
+  $URL = "https://$($datagen.MoveIP)/v1/targets"
+  if ($datavar.debug -ge 2){
+    $json | out-file c:\temp\move2.json
+  }
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+
 
 
 
@@ -666,6 +2053,105 @@ Function REST-Update-Project {
   } else {
     write-log -message "Project Update Failed" 
   }
+  Return $task
+} 
+
+Function REST-Create-KarbonCluster {
+  Param (
+    [string] $ClusterPC_IP,
+    [string] $clpassword,
+    [string] $clusername,
+    [string] $VMNetworkUUID,    
+    [string] $PEClusterUUID,
+    [string] $KarbonImageUUID, 
+    [string] $StorageContainerName,
+    [string] $debug
+  )
+
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+  write-log -message "Executing Project K8 Cluster"
+
+  $UserGroupURL = "https://$($ClusterPC_IP):7050/acs/k8s/cluster"
+
+  write-log -message "Using URL $UserGroupURL"
+
+  $json = @"
+{
+  "name": "Karbon",
+  "description": "Demo Cluster",
+  "vm_network": "$($VMNetworkUUID)",
+  "k8s_config": {
+    "service_cluster_ip_range": "172.19.0.0/16",
+    "network_cidr": "172.20.0.0/16",
+    "fqdn": "",
+    "workers": [{
+      "cpu": 4,
+      "memory_mib": 8192,
+      "image": "$($KarbonImageUUID)",
+      "disk_mib": 122880
+    }, {
+      "cpu": 4,
+      "memory_mib": 8192,
+      "image": "$($KarbonImageUUID)",
+      "disk_mib": 122880
+    }, {
+      "cpu": 4,
+      "memory_mib": 8192,
+      "image": "$($KarbonImageUUID)",
+      "disk_mib": 122880
+    }],
+    "masters": [{
+      "cpu": 2,
+      "memory_mib": 4096,
+      "image": "$($KarbonImageUUID)",
+      "disk_mib": 122880
+    }],
+    "os_flavor": "centos",
+    "network_subnet_len": 24,
+    "version": "v1.10.3"
+  },
+  "cluster_ref": "$($PEClusterUUID)",
+  "logging_config": {
+    "enable_app_logging": false
+  },
+  "storage_class_config": {
+    "metadata": {
+      "name": "default-storageclass"
+    },
+    "spec": {
+      "cluster_ref": "$($PEClusterUUID)",
+      "user": "$($clusername)",
+      "password": "$($clpassword)",
+      "storage_container": "$($StorageContainerName)",
+      "file_system": "ext4",
+      "flash_mode": false
+    }
+  },
+  "etcd_config": {
+    "num_instances": 3,
+    "name": "POC041",
+    "resource_config": {
+      "cpu": 2,
+      "memory_mib": 8192,
+      "image": "$($KarbonImageUUID)",
+      "disk_mib": 40960
+    }
+  }
+}
+"@
+  try{
+    $task = Invoke-RestMethod -Uri $UserGroupURL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+    IF ($DEBUG -GE 2  ){
+      $JSON | OUT-FILE C:\TEMP\kARBON.JSON
+    }
+    write-log -message "Going once"
+    $task = Invoke-RestMethod -Uri $UserGroupURL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  }
+  sleep 5
   Return $task
 } 
 
@@ -1211,6 +2697,18 @@ Function REST-Query-Images {
 
     $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
   }
+  if ($task.entities.count -eq 0){
+
+    write-log -message "0? Let me try that again after a small nap."
+
+    do {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+      sleep 30
+      $count++
+
+      write-log -message "Cycle $count Getting Images types, current items found is $($task.entities.count)"
+    } until ($count -ge 10 -or $task.entities.count -ge 1)
+  }
   write-log -message "We found $($task.entities.count) items."
 
   Return $task
@@ -1432,6 +2930,169 @@ $Json = @"
   Return $task
 } 
 
+Function REST-Move-BluePrint-Launch1 {
+  Param (
+    [object] $datagen,
+    [string] $BPuuid,
+    [string] $taskUUID,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Replacing JSON String Variables"
+$Json = @"
+{
+ "spec": {
+   "app_profile_reference": {
+     "kind": "app_profile",
+     "name": "Nutanix",
+     "uuid": "$taskUUID"
+   },
+   "runtime_editables": {
+     "action_list": [
+       {
+       }
+     ],
+     "service_list": [
+       {
+       }
+     ],
+     "credential_list": [
+       {
+       }
+     ],
+     "substrate_list": [
+       {
+       }
+     ],
+     "package_list": [
+       {
+       }
+     ],
+     "app_profile": {
+     },
+     "task_list": [
+       {
+       }
+     ],
+     "variable_list": [
+       {
+       }
+     ],
+     "deployment_list": [
+       {
+       }
+     ]
+   },
+   "app_name": "Nutanix Move"
+ }
+}
+"@ 
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BPuuid)/simple_launch"
+  if ($debug -ge 2){
+    $Json | out-file c:\temp\bplaunch.json
+  }
+
+  write-log -message "Executing Launch for $BPuuid"
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+Function REST-Karbon-BluePrint-Launch {
+  Param (
+    [object] $datagen,
+    [string] $BPuuid,
+    [string] $taskUUID,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Replacing JSON String Variables"
+$Json = @"
+{
+ "spec": {
+   "app_profile_reference": {
+     "kind": "app_profile",
+     "name": "Default",
+     "uuid": "$taskUUID"
+   },
+   "runtime_editables": {
+     "action_list": [
+       {
+       }
+     ],
+     "service_list": [
+       {
+       }
+     ],
+     "credential_list": [
+       {
+       }
+     ],
+     "substrate_list": [
+       {
+       }
+     ],
+     "package_list": [
+       {
+       }
+     ],
+     "app_profile": {
+     },
+     "task_list": [
+       {
+       }
+     ],
+     "variable_list": [
+       {
+       }
+     ],
+     "deployment_list": [
+       {
+       }
+     ]
+   },
+   "app_name": "Karbon Installer"
+ }
+}
+"@ 
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BPuuid)/simple_launch"
+  if ($debug -ge 2){
+    $Json | out-file c:\temp\bplaunch.json
+  }
+
+  write-log -message "Executing Launch for $BPuuid"
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
 
 Function REST-XPlay-Query-Playbooks {
   Param (
@@ -1499,7 +3160,18 @@ Function REST-XPlay-Query-ActionTypes {
     $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
   }
   write-log -message "We found $($task.entities.count) items."
+  if ($task.entities.count -eq 0){
 
+    write-log -message "0? Let me try that again after a small nap."
+
+    do {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+      sleep 30
+      $count++
+
+      write-log -message "Cycle $count Getting action types, current items found is $($task.entities.count)"
+    } until ($count -ge 10 -or $task.entities.count -ge 1)
+  }
   Return $task
 } 
 
@@ -1567,7 +3239,7 @@ Function REST-XPlay-Create-Playbook {
     [object] $AlertTriggerObject,
     [object] $AlertActiontypeObject,
     [object] $AlertTypeObject,
-    [object] $BluePrint,
+    [object] $BluePrintObject,
     [object] $datavar
   )
 
@@ -1578,6 +3250,13 @@ Function REST-XPlay-Create-Playbook {
   $alertActiontype = $AlertActiontypeObject.entities | where {$_.status.resources.display_name -eq "REST API"}
   $BPAppID = $(($BluePrintObject.spec.resources.app_profile_list | where {$_.name -eq "IIS"}).uuid)
   write-log -message "Replacing JSON String Variables"
+  write-log -message "Using Action Type $($alertActiontype.metadata.uuid)"
+  write-log -message "Using Alert Trigger $($AlertTriggerObject.group_results.Entity_results.entity_id)"
+  write-log -message "Using Alert Type $($AlertTypeObject.group_results.entity_results.entity_id)"
+  write-log -message "Using Blueprint $($BluePrintObject.metadata.uuid)"
+  write-log -message "Using BP App $($BPAppID)"
+
+
 $Json = @"
 {
   "api_version": "3.1",
@@ -1600,7 +3279,7 @@ $Json = @"
             "name": "alert_trigger"
           },
           "input_parameter_values": {
-            "alert_uid": "A$($AlertTypeUUID.group_results.entity_results.entity_id)",
+            "alert_uid": "A$($AlertTypeObject.group_results.entity_results.entity_id)",
             "severity": "[\"critical\"]",
             "source_entity_info_list": "[]"
           }
@@ -1702,7 +3381,18 @@ $Json = @"
 
     $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
   }
+  if ($task.total_group_count -eq 0){
 
+    write-log -message "0? Let me try that again after a small nap."
+    $count = 0
+    do {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+      sleep 30
+      $count++
+
+      write-log -message "Cycle $count Getting Alert trigger types, current items found is $($task.total_group_count)"
+    } until ($count -ge 10 -or $task.total_group_count -ge 1)
+  }
   Return $task
 } 
 
@@ -1798,10 +3488,11 @@ Function REST-ERA-RegisterClusterStage1 {
   try {
     $task = Invoke-RestMethod -Uri $URL -method "POST" -body $JSON -ContentType 'application/json' -headers $headers;
   } catch {
-    sleep 10
-    $task = Invoke-RestMethod -Uri $URL -method "POST" -body $JSON -ContentType 'application/json' -headers $headers;
 
     write-log -message "Going once"
+
+    sleep 60
+    $task = Invoke-RestMethod -Uri $URL -method "POST" -body $JSON -ContentType 'application/json' -headers $headers;
   }  
   Return $task
 } 
@@ -1814,7 +3505,7 @@ Function REST-ERA-AttachPENetwork {
     [string] $ClusterUUID
   )
 
-  write-log -message "Debug level is $debug";
+  write-log -message "Debug level is $($datavar.debug)";
   write-log -message "Building Credential object"
   $credPair = "$($datavar.peadmin):$($datavar.pepass)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
@@ -1826,12 +3517,13 @@ Function REST-ERA-AttachPENetwork {
 
   write-log -message "Using URL $URL"
   write-log -message "Using IP $($datagen.era1ip)"
+  write-log -message "Registering Cluster: $ClusterUUID"
 
   $Json = @"
 {
     "name":  "Automation-Network-01",
     "type":  "DHCP",
-    "clusterId":  "a62091ef-691f-434d-a8c2-90ef672f963d",
+    "clusterId":  "$($ClusterUUID)",
     "managed":  true,
     "properties":  [
 
@@ -1844,10 +3536,11 @@ Function REST-ERA-AttachPENetwork {
   try {
     $task = Invoke-RestMethod -Uri $URL -method "POST" -body $JSON -ContentType 'application/json' -headers $headers;
   } catch {
-    sleep 10
-    $task = Invoke-RestMethod -Uri $URL -method "POST" -body $JSON -ContentType 'application/json' -headers $headers;
 
     write-log -message "Going once"
+
+    sleep 60
+    $task = Invoke-RestMethod -Uri $URL -method "POST" -body $JSON -ContentType 'application/json' -headers $headers; 
   }  
   Return $task
 } 
@@ -1859,7 +3552,7 @@ Function REST-ERA-GetClusters {
     [string] $ClusterUUID
   )
 
-  write-log -message "Debug level is $debug";
+  write-log -message "Debug level is $($datavar.debug)";
   write-log -message "Building Credential object"
   $credPair = "$($datavar.peadmin):$($datavar.pepass)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
@@ -1889,7 +3582,7 @@ Function REST-ERA-GetNetworks {
     [object] $datagen
   )
 
-  write-log -message "Debug level is $debug";
+  write-log -message "Debug level is $($datavar.debug)";
   write-log -message "Building Credential object"
   $credPair = "$($datavar.peadmin):$($datavar.pepass)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
@@ -1920,13 +3613,13 @@ Function REST-ERA-RegisterClusterStage2 {
     [string] $ClusterUUID
   )
 
-  write-log -message "Debug level is $debug";
+  write-log -message "Debug level is $($datavar.debug)";
   write-log -message "Building Credential object"
   $credPair = "$($datavar.peadmin):$($datavar.pepass)"
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
 
-  write-log -message "Building EULA Accept JSON"
+  write-log -message "Building Stage 2 JSON"
 
   $URL = "https://$($datagen.ERA1IP):8443/era/v0.8/clusters/$($ClusterUUID)/json"
 

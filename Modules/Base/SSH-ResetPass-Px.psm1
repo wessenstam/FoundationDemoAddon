@@ -148,10 +148,10 @@ Function SSH-ResetPass-Px {
         ## Do some SSH based portal password reset for ERA
       }
     } catch {
-      write-log -message "Password reset failure, retry $Resetpasscount out of 5" -sev "WARN"
+      write-log -message "Password reset failure, retry $Resetpasscount out of 3" -sev "WARN"
       $passreset = $false
     }
-  } until (($passreset -eq $true) -or $Resetpasscount -ge 5)
+  } until (($passreset -eq $true) -or $Resetpasscount -ge 3)
   if ($passreset -eq $true){
     $status = "Success"
     write-log -message "Password has been reset"

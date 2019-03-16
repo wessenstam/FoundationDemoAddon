@@ -57,7 +57,7 @@ Function CMD-Create-FSShares {
 
             $noerror = "no"
           }
-      } until ($count -eq 20 -or $noerror -eq "yes")
+      } until ($count -eq 3 -or $noerror -eq "yes")
       
       sleep 60;
     };
@@ -84,7 +84,7 @@ Function CMD-Create-FSShares {
       }
     } catch {
     }
-  } until (($task1 -and $task2 -and $task3) -or $count3 -eq 5)
+  } until (($task1 -and $task2 -and $task3) -or $count3 -eq 3)
   if ($task1 -and $task2 -and $task3){
     $status = "Success"
 

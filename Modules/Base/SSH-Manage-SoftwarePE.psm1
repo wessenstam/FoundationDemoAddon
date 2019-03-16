@@ -33,7 +33,7 @@ Function SSH-Manage-SoftwarePE {
   
           write-log -message "Checking if requested version is possible."
   
-          $MatchingVersion = $object.'Prism Central Deploy' | where {$_ -match "[0-9]" -and $_ -notmatch "bytes|in-progress"} | sort { [version]$_} | where {$_ -eq $PCversion}
+          $MatchingVersion = $object.'Prism Central Deploy' | where {$_ -match "[0-9]" -and $_ -notmatch "bytes|in-progress"} | sort { [version]$_} | where {$_ -eq $PCversion} | select -last 1
           if ($matchingversion){
   
             write-log -message "Requested version found $truePCversion"
@@ -58,15 +58,19 @@ Function SSH-Manage-SoftwarePE {
         if ($debug -ge 2){
           $PCDownload
         }
-        do {
-          $pcstatuscheck++
-          $PCDownloadStatus = (Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=PRISM_CENTRAL_DEPLOY name='$($truePCversion)'" -EnsureConnection).output
-          sleep 90
-          if ($debug -ge 2){
-            $PCDownloadStatus
-          }
-          write-log -message "Still downloading Prism Central." 
-        } until ($pcstatuscheck -ge 40 -or $PCDownloadStatus -match "completed")
+        if ($wait -eq 1){
+          do {
+            $pcstatuscheck++
+            $PCDownloadStatus = (Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=PRISM_CENTRAL_DEPLOY name='$($truePCversion)'" -EnsureConnection).output
+            sleep 90
+            if ($debug -ge 2){
+              $PCDownloadStatus
+            }
+            write-log -message "Still downloading Prism Central." 
+          } until ($pcstatuscheck -ge 40 -or $PCDownloadStatus -match "completed")
+        } else {
+          $PCDownloadStatus = "Completed"
+        }
         if ($pcstatuscheck -ge 40){
   
           write-log -message "AOS Could not download PC in time" -sev "ERROR"
@@ -120,17 +124,21 @@ Function SSH-Manage-SoftwarePE {
           if ($debug -ge 2){
             $AFSDownload
           }
-          do {
-            $AFSStatuscheck++
-            $AFSDownloadStatus = (Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=FILE_SERVER name='$($trueFilesVersion)'" -EnsureConnection).output
-            sleep 60
-            if ($debug -ge 2){
-              $AFSDownloadStatus
-            }
-  
-            write-log -message "Still downloading Files."
-  
-          } until ($AFSStatuscheck -ge 30 -or $AFSDownloadStatus -match "completed")
+          if ($wait -eq 1){
+            do {
+              $AFSStatuscheck++
+              $AFSDownloadStatus = (Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=FILE_SERVER name='$($trueFilesVersion)'" -EnsureConnection).output
+              sleep 60
+              if ($debug -ge 2){
+                $AFSDownloadStatus
+              }
+    
+              write-log -message "Still downloading Files."
+    
+            } until ($AFSStatuscheck -ge 30 -or $AFSDownloadStatus -match "completed")
+          } else {
+            $AFSDownloadStatus = "Completed"
+          }
         } else {
   
           write-log -message "There are no Files downloads available"
@@ -174,32 +182,18 @@ Function SSH-Manage-SoftwarePE {
         if ($debug -ge 2){
           $NCCDownload
         }
-        do {
-          $NCCStatusCheck++
-          $NCCDownloadStatus = (Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=NCC name='$($trueNCCVersion)'" -EnsureConnection).output
-          sleep 60
-          if ($debug -ge 2){
-            $NCCDownloadStatus
-          }
 
-          write-log -message "Still downloading NCC, which is weird."
+        write-log -message "Not waiting for NCC downloads."
 
-        } until ($NCCStatusCheck -ge 10 -or $NCCDownloadStatus -match "completed")
+        $NCCDownloadCompleted = $true
       } else {
 
         write-log -message "There are no NCC downloads available"
 
-        $NCCDownloadStatus = "Completed"
-      }
-      if ($NCCStatusCheck -ge 10){
-
-        write-log -message "NCC Could not be downloaded in time"
-
-      }
-
-      if ($NCCDownloadStatus -match "Completed"){
         $NCCDownloadCompleted = $true
       }
+
+
     } catch {;
       $NCCDownloadCompleted = $false
 
@@ -230,17 +224,22 @@ Function SSH-Manage-SoftwarePE {
         if ($debug -ge 2){
           $NCCDownload
         }
-        do {
-          $NOSStatusCheck++
-          $NOSDownloadStatus = (Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=NOS name='$($trueNOSVersion)'" -EnsureConnection).output
-          sleep 60
-          if ($debug -ge 2){
-            $NOSDownloadStatus
-          }
+        if ($wait -eq 1){
+          do {
+            $NOSStatusCheck++
+            $NOSDownloadStatus = (Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=NOS name='$($trueNOSVersion)'" -EnsureConnection).output
+            sleep 60
+            if ($debug -ge 2){
+              $NOSDownloadStatus
+            }
+  
+             write-log -message "Still downloading AOS Updates." 
+  
+          } until ($NOSStatusCheck -ge 20 -or $NOSDownloadStatus -match "completed")
+        } else {
+          $NOSDownloadStatus = "completed"
 
-           write-log -message "Still downloading AOS Updates." 
-
-        } until ($NOSStatusCheck -ge 20 -or $NOSDownloadStatus -match "completed")
+        }
       } else {
 
         write-log -message "There are no NOS downloads available"
@@ -275,7 +274,7 @@ Function SSH-Manage-SoftwarePE {
       $PossibleHVVersions = Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=HYPERVISOR" -EnsureConnection
       if ($PossibleHVVersions.output -notmatch "\[None\]"){
         $object = ($PossibleHVVersions.Output | ConvertFrom-Csv -Delimiter : )
-        $trueHVVersion = $object.'NOS' | where {$_ -match "[0-9]" -and $_ -notmatch "bytes|in-progress"} | sort { [version]$_} | select -last 1
+        $trueHVVersion = $object.'HYPERVISOR' | where {$_ -match "^el.*"} |  select -last 1
 
         write-log -message "We found Version $trueHVVersion available for download"
         write-log -message "Starting the download of HyperVisor Version $trueHVVersion"
@@ -284,17 +283,22 @@ Function SSH-Manage-SoftwarePE {
         if ($debug -ge 2){
           $HVDownload
         }
-        do {
-          $HVStatusCheck++
-          $HVDownloadStatus = (Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=HYPERVISOR name='$($trueHVVersion)'" -EnsureConnection).output
-          sleep 60
-          if ($debug -ge 2){
-            $HVDownloadStatus
-          }
+        if ($wait -eq 1){
+          do {
+            $HVStatusCheck++
+            $HVDownloadStatus = (Invoke-SSHCommand -SSHSession $session -command "/home/nutanix/prism/cli/ncli software list software-type=HYPERVISOR name='$($trueHVVersion)'" -EnsureConnection).output
+            sleep 60
+            if ($debug -ge 2){
+              $HVDownloadStatus
+            }
+  
+            write-log -message "Still downloading new HyperVisor updates."
+  
+          } until ($HVStatusCheck -ge 10 -or $HVDownloadStatus -match "completed")
+        } else {
+          $HVDownloadStatus = "completed"
 
-          write-log -message "Still downloading new HyperVisor updates."
-
-        } until ($HVStatusCheck -ge 10 -or $HVDownloadStatus -match "completed")
+        }
       } else {
 
         write-log -message "There are no HyperVisor downloads available"

@@ -113,7 +113,7 @@ Function REST-Install-PC {
       $PCJSON = @"
 {
   "resources": {
-    "should_auto_register":true,
+    "should_auto_register":false,
     "version":"$($PCVersion)",
     "pc_vm_list":[{
       "data_disk_size_bytes":536870912000,
@@ -143,10 +143,12 @@ Function REST-Install-PC {
     } catch {
       
       write-log -message "Failure installing Prism Central, retry $PCinstallcount out of 5" -sev "WARN"
-
+      sleep 60
       if ($debug -ge 2){
         $task 
         write-host $PCJSON
+        $task = Invoke-RestMethod -Uri $installURL -method "Post" -headers $headers -body $PCJSON -ContentType 'application/json'
+      
       }
     }
   } Until ($taskid -match "[0-9]" -or $PCinstallcount -eq 5)

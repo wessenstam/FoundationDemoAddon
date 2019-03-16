@@ -13,8 +13,8 @@ Function Lib-Check-Thread {
     LIB-Send-Confirmation -reciever $datavar.SenderEMail -datagen $data -datavar $datavar -mode "FailedStage" -stage $stage -debug $datavar.debug -logfile $logfile
     $exit = 1
     try {
-      Remove-item $lockfile
-      Remove-item $SingleModelck
+      Remove-item $lockfile -force -confirm:0 -ea:0
+      Remove-item $SingleModelck -force -confirm:0 -ea:0
       if ($debug -ge 2){
         
       } else {

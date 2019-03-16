@@ -1,0 +1,567 @@
+{
+  "spec": {
+    "description": "Nutanix Move \n(http:\/\/@@{Move.address}@@\/)\n******\nNutanix Move helps streamline \u2018lift-and-shift\u2019 virtual machine (VM) migrations to a Nutanix Enterprise Cloud.\n-Streamlined migrations with one-click simplicity\n-Near-zero downtime with full cutover control\n-Simple test migrations and roll-back capabilities\n-Cost efficient - included with all Nutanix software editions",
+    "resources": {
+      "client_attrs": {
+        "1bd2d70a_deployment": {
+          "y": 296,
+          "x": 551
+        }
+      },
+      "service_definition_list": [{
+        "singleton": false,
+        "action_list": [{
+          "description": "System action for creating an application",
+          "type": "system",
+          "critical": false,
+          "runbook": {
+            "task_definition_list": [{
+              "target_any_local_reference": {
+                "kind": "app_service",
+                "name": "Move"
+              },
+              "retries": "0",
+              "description": "",
+              "child_tasks_local_reference_list": [],
+              "name": "e8ae6024_dag",
+              "attrs": {
+                "edges": [],
+                "type": ""
+              },
+              "timeout_secs": "0",
+              "type": "DAG",
+              "variable_list": []
+            }],
+            "description": "",
+            "name": "170603f6_runbook",
+            "main_task_local_reference": {
+              "kind": "app_task",
+              "name": "e8ae6024_dag"
+            },
+            "variable_list": []
+          },
+          "name": "action_create"
+        }, {
+          "description": "System action for deleting an application. Deletes created VMs as well",
+          "type": "system",
+          "critical": false,
+          "runbook": {
+            "task_definition_list": [{
+              "target_any_local_reference": {
+                "kind": "app_service",
+                "name": "Move"
+              },
+              "retries": "0",
+              "description": "",
+              "child_tasks_local_reference_list": [],
+              "name": "f25e9ca6_dag",
+              "attrs": {
+                "edges": [],
+                "type": ""
+              },
+              "timeout_secs": "0",
+              "type": "DAG",
+              "variable_list": []
+            }],
+            "description": "",
+            "name": "017e6fe9_runbook",
+            "main_task_local_reference": {
+              "kind": "app_task",
+              "name": "f25e9ca6_dag"
+            },
+            "variable_list": []
+          },
+          "name": "action_delete"
+        }, {
+          "description": "System action for starting an application",
+          "type": "system",
+          "critical": false,
+          "runbook": {
+            "task_definition_list": [{
+              "target_any_local_reference": {
+                "kind": "app_service",
+                "name": "Move"
+              },
+              "retries": "0",
+              "description": "",
+              "child_tasks_local_reference_list": [],
+              "name": "7cd4b387_dag",
+              "attrs": {
+                "edges": [],
+                "type": ""
+              },
+              "timeout_secs": "0",
+              "type": "DAG",
+              "variable_list": []
+            }],
+            "description": "",
+            "name": "73434119_runbook",
+            "main_task_local_reference": {
+              "kind": "app_task",
+              "name": "7cd4b387_dag"
+            },
+            "variable_list": []
+          },
+          "name": "action_start"
+        }, {
+          "description": "System action for stopping an application",
+          "type": "system",
+          "critical": false,
+          "runbook": {
+            "task_definition_list": [{
+              "target_any_local_reference": {
+                "kind": "app_service",
+                "name": "Move"
+              },
+              "retries": "0",
+              "description": "",
+              "child_tasks_local_reference_list": [],
+              "name": "83f2a218_dag",
+              "attrs": {
+                "edges": [],
+                "type": ""
+              },
+              "timeout_secs": "0",
+              "type": "DAG",
+              "variable_list": []
+            }],
+            "description": "",
+            "name": "35799808_runbook",
+            "main_task_local_reference": {
+              "kind": "app_task",
+              "name": "83f2a218_dag"
+            },
+            "variable_list": []
+          },
+          "name": "action_stop"
+        }, {
+          "description": "System action for restarting an application",
+          "type": "system",
+          "critical": false,
+          "runbook": {
+            "task_definition_list": [{
+              "target_any_local_reference": {
+                "kind": "app_service",
+                "name": "Move"
+              },
+              "retries": "0",
+              "description": "",
+              "child_tasks_local_reference_list": [],
+              "name": "7078cac1_dag",
+              "attrs": {
+                "edges": [],
+                "type": ""
+              },
+              "timeout_secs": "0",
+              "type": "DAG",
+              "variable_list": []
+            }],
+            "description": "",
+            "name": "0d16f818_runbook",
+            "main_task_local_reference": {
+              "kind": "app_task",
+              "name": "7078cac1_dag"
+            },
+            "variable_list": []
+          },
+          "name": "action_restart"
+        }],
+        "depends_on_list": [],
+        "name": "Move",
+        "port_list": [],
+        "tier": "",
+        "variable_list": [],
+        "description": ""
+      }],
+      "substrate_definition_list": [{
+        "description": "",
+        "action_list": [],
+        "type": "AHV_VM",
+        "name": "MoveSvr1",
+        "readiness_probe": {
+          "connection_type": "SSH",
+          "retries": "5",
+          "disable_readiness_probe": true,
+          "address": "@@{platform.status.resources.nic_list[0].ip_endpoint_list[0].ip}@@",
+          "delay_secs": "80",
+          "connection_port": 22,
+          "login_credential_local_reference": {
+            "kind": "app_credential",
+            "name": "LOCAL"
+          }
+        },
+        "editables": {
+          "readiness_probe": {
+            "connection_type": true,
+            "connection_port": true,
+            "timeout_secs": true
+          },
+          "create_spec": {
+            "name": true,
+            "resources": {
+              "nic_list": {},
+              "serial_port_list": {},
+              "num_vcpus_per_socket": true,
+              "num_sockets": true,
+              "memory_size_mib": true,
+              "guest_customization": true,
+              "disk_list": {}
+            }
+          }
+        },
+        "os_type": "Linux",
+        "create_spec": {
+          "name": "@@{vm_name}@@",
+          "resources": {
+            "nic_list": [{
+              "nic_type": "NORMAL_NIC",
+              "ip_endpoint_list": [{
+                "ip": "---MOVEVMIP---",
+                "type": "ASSIGNED"
+              }],
+              "network_function_chain_reference": null,
+              "network_function_nic_type": "INGRESS",
+              "mac_address": "",
+              "subnet_reference": {
+                "kind": "subnet",
+                "type": "",
+                "name": "",
+                "uuid": "---SUBNETREF---"
+              },
+              "type": ""
+            }],
+            "serial_port_list": [],
+            "guest_tools": null,
+            "num_vcpus_per_socket": 1,
+            "num_sockets": 2,
+            "gpu_list": [],
+            "memory_size_mib": 4096,
+            "parent_reference": null,
+            "hardware_clock_timezone": "",
+            "guest_customization": {
+              "cloud_init": {
+                "meta_data": "",
+                "type": "",
+                "user_data": "#cloud-config\noutput: {all: '| tee -a \/var\/log\/cloud-init-output.log'}\ndisable_root: true\nssh_enabled: True\nssh_pwauth: True\nruncmd:\n- mount -o remount,rw \/ && mount 2>&1\n- sed 's\/timeout 300\/timeout 40\/'  \/etc\/dhcp\/dhclient.conf\n- systemctl restart sshd\n- userdel -r centos\n- touch \/opt\/xtract-vm\/key\/.hermeskey\n- 'dmidecode -s system-uuid | tee \/opt\/xtract-vm\/key\/.hermeskey'\n- chown mgmtserver:vmxtract \/opt\/xtract-vm\/key\/.hermeskey\n- chmod 440 \/opt\/xtract-vm\/key\/.hermeskey\n- usermod -s \/sbin\/nologin root\n- passwd -l root\n- chmod ug+x \/opt\/xtract-vm\/resources\/gencertkeypairs.sh\n- RANDFILE=.rnd \/opt\/xtract-vm\/resources\/gencertkeypairs.sh \/opt\/xtract-vm\/resources\n- chown mgmtserver:vmxtract \/opt\/xtract-vm\/resources\/*.pem \/opt\/xtract-vm\/resources\/*.crt \/opt\/xtract-vm\/resources\/*.key\n# Set capabilities so that mgmtserver can bind to port 80 and tgtagent can mount\n- setcap CAP_NET_BIND_SERVICE=ep \/opt\/xtract-vm\/bin\/mgmt-server\n- setcap CAP_SYS_ADMIN=ep \/opt\/xtract-vm\/bin\/tgtagent\n- systemctl stop srcagent tgtagent mgmtserver upgradeserver iptables\n- systemctl stop diskreader diskwriter\n- chmod 555 \/\n- 'semanage fcontext --add --type user_home_dir_t \"\/home\/admin(\/.*)?\"'\n- restorecon -FRv \/\n- systemctl start diskreader diskwriter\n- systemctl start srcagent tgtagent mgmtserver upgradeserver iptables"
+              },
+              "type": "",
+              "sysprep": null
+            },
+            "power_state": "ON",
+            "type": "",
+            "boot_config": {
+              "boot_device": {
+                "type": "",
+                "disk_address": {
+                  "type": "",
+                  "device_index": 0,
+                  "adapter_type": "SCSI"
+                }
+              },
+              "type": "",
+              "mac_address": ""
+            },
+            "disk_list": [{
+              "data_source_reference": {
+                "kind": "image",
+                "type": "",
+                "name": "---IMAGENAMEREF---",
+                "uuid": "---IMAGEUUIDREF---"
+              },
+              "type": "",
+              "disk_size_mib": 0,
+              "volume_group_reference": null,
+              "device_properties": {
+                "type": "",
+                "disk_address": {
+                  "type": "",
+                  "device_index": 0,
+                  "adapter_type": "SCSI"
+                },
+                "device_type": "DISK"
+              }
+            }]
+          },
+          "availability_zone_reference": null,
+          "backup_policy": null,
+          "type": "",
+          "cluster_reference": null,
+          "categories": ""
+        },
+        "variable_list": []
+      }],
+      "credential_definition_list": [{
+        "username": "admin",
+        "description": "",
+        "type": "PASSWORD",
+        "secret": {
+          "attrs": {
+            "is_secret_modified": false,
+            "secret_reference": {}
+          }
+        },
+        "name": "LOCAL",
+        "editables": {
+          "username": true,
+          "secret": true
+        }
+      }, {
+        "username": "admin",
+        "description": "",
+        "type": "PASSWORD",
+        "secret": {
+          "attrs": {
+            "is_secret_modified": false,
+            "secret_reference": {}
+          }
+        },
+        "name": "move"
+      }],
+      "package_definition_list": [{
+        "description": "",
+        "action_list": [],
+        "type": "DEB",
+        "service_local_reference_list": [{
+          "kind": "app_service",
+          "name": "Move"
+        }],
+        "name": "Package1",
+        "version": "",
+        "options": {
+          "install_runbook": {
+            "task_definition_list": [{
+              "target_any_local_reference": {
+                "kind": "app_package",
+                "name": "Package1"
+              },
+              "retries": "0",
+              "description": "",
+              "message_list": [],
+              "child_tasks_local_reference_list": [],
+              "name": "80dbbb84_dag",
+              "state": "ACTIVE",
+              "attrs": {
+                "edges": [],
+                "type": ""
+              },
+              "timeout_secs": "0",
+              "type": "DAG",
+              "variable_list": []
+            }],
+            "description": "",
+            "name": "5c108f0d_runbook",
+            "state": "ACTIVE",
+            "main_task_local_reference": {
+              "kind": "app_task",
+              "name": "80dbbb84_dag"
+            },
+            "message_list": [],
+            "variable_list": []
+          },
+          "type": "",
+          "uninstall_runbook": {
+            "task_definition_list": [{
+              "target_any_local_reference": {
+                "kind": "app_package",
+                "name": "Package1"
+              },
+              "retries": "0",
+              "description": "",
+              "message_list": [],
+              "child_tasks_local_reference_list": [],
+              "name": "6f292b4a_dag",
+              "state": "ACTIVE",
+              "attrs": {
+                "edges": [],
+                "type": ""
+              },
+              "timeout_secs": "0",
+              "type": "DAG",
+              "variable_list": []
+            }],
+            "description": "",
+            "name": "1f35f88e_runbook",
+            "state": "ACTIVE",
+            "main_task_local_reference": {
+              "kind": "app_task",
+              "name": "6f292b4a_dag"
+            },
+            "message_list": [],
+            "variable_list": []
+          }
+        },
+        "variable_list": []
+      }],
+      "app_profile_list": [{
+        "deployment_create_list": [{
+          "type": "GREENFIELD",
+          "action_list": [],
+          "depends_on_list": [],
+          "name": "1bd2d70a_deployment",
+          "published_service_local_reference_list": [],
+          "max_replicas": "1",
+          "package_local_reference_list": [{
+            "kind": "app_package",
+            "name": "Package1"
+          }],
+          "substrate_local_reference": {
+            "kind": "app_substrate",
+            "name": "MoveSvr1"
+          },
+          "min_replicas": "1",
+          "variable_list": [],
+          "description": ""
+        }],
+        "description": "",
+        "action_list": [{
+          "description": "",
+          "type": "user",
+          "critical": false,
+          "runbook": {
+            "task_definition_list": [{
+              "retries": "0",
+              "description": "",
+              "child_tasks_local_reference_list": [{
+                "kind": "app_task",
+                "name": "Task1"
+              }],
+              "name": "dcad85f7_dag",
+              "attrs": {
+                "edges": [],
+                "type": ""
+              },
+              "timeout_secs": "0",
+              "type": "DAG",
+              "variable_list": []
+            }, {
+              "target_any_local_reference": {
+                "kind": "app_service",
+                "name": "Move"
+              },
+              "retries": "0",
+              "description": "",
+              "child_tasks_local_reference_list": [],
+              "name": "Task1",
+              "attrs": {
+                "expected_response_params": [{
+                  "status": "SUCCESS",
+                  "code": 200,
+                  "type": ""
+                }],
+                "request_body": "{\"EulaAccepted\":true,\"TelemetryOn\":true,\"NewPassword\":\"@@{move_password}@@\"}",
+                "headers": [{
+                  "val_type": "STRING",
+                  "description": "",
+                  "name": "Accept",
+                  "type": "LOCAL",
+                  "value": "application\/json",
+                  "label": "",
+                  "state": "NOT_VALIDATED",
+                  "attrs": {
+                    "type": ""
+                  },
+                  "editables": {},
+                  "message_list": []
+                }, {
+                  "val_type": "STRING",
+                  "description": "",
+                  "name": "Content-Type",
+                  "type": "LOCAL",
+                  "value": "application\/json",
+                  "label": "",
+                  "state": "NOT_VALIDATED",
+                  "attrs": {
+                    "type": ""
+                  },
+                  "editables": {},
+                  "message_list": []
+                }],
+                "url": "https:\/\/@@{Move.address}@@\/v1\/configure",
+                "response_paths": {},
+                "retry_interval": 1,
+                "retry_count": 1,
+                "authentication": {
+                  "auth_type": "basic",
+                  "basic_auth": {
+                    "username": "nutanix",
+                    "password": {
+                      "attrs": {
+                        "is_secret_modified": false,
+                        "secret_reference": {}
+                      }
+                    }
+                  }
+                },
+                "tls_verify": false,
+                "content_type": "application\/json",
+                "connection_timeout": 120,
+                "type": "",
+                "method": "POST"
+              },
+              "timeout_secs": "0",
+              "type": "HTTP",
+              "variable_list": []
+            }],
+            "description": "",
+            "name": "2ec0b1e6_runbook",
+            "main_task_local_reference": {
+              "kind": "app_task",
+              "name": "dcad85f7_dag"
+            },
+            "variable_list": []
+          },
+          "name": "EULA_PW"
+        }],
+        "name": "Nutanix",
+        "variable_list": [{
+          "val_type": "STRING",
+          "description": "",
+          "name": "vm_name",
+          "type": "LOCAL",
+          "value": "---MOVEVMNAME---",
+          "label": "",
+          "attrs": {
+            "type": ""
+          },
+          "editables": {
+            "value": true
+          }
+        }, {
+          "val_type": "STRING",
+          "description": "",
+          "name": "move_password",
+          "type": "SECRET",
+          "value": "",
+          "label": "",
+          "attrs": {
+            "is_secret_modified": false,
+            "secret_reference": {},
+            "type": ""
+          },
+          "editables": {
+            "value": true
+          }
+        }]
+      }],
+      "published_service_definition_list": [],
+      "default_credential_local_reference": {
+        "kind": "app_credential",
+        "name": "LOCAL"
+      },
+      "type": "USER"
+    },
+    "name": "Nutanix Move"
+  },
+  "api_version": "3.0",
+  "metadata": {
+    "last_update_time": "1552407934918389",
+    "kind": "blueprint",
+    "spec_version": 34,
+    "creation_time": "1550773693076991",
+    "name": "Nutanix Move",
+    "project_reference": {
+      "kind": "project",
+      "uuid": "---PROJECTREF---"
+    }
+  }
+}

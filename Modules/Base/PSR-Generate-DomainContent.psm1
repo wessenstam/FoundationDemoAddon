@@ -27,7 +27,7 @@ Function PSR-Generate-DomainContent {
 
   $connect = invoke-command -computername $ip -credential $credential { 
     $DomainParts = $Args[0].split(".");
-    $Customers = "Customer-A","Customer-B","Customer-C","Customer-D","Customer-E","Customer-F";
+    $Customers = "Customer-A","Customer-B","Customer-C"
     $OUs = "User-Accounts","Groups","Service-Accounts","Admin-Accounts","Resources","Disabled-Users";
     $users = "User-1","User-2","User-3","User-4","User-5";
     $ServiceAccounts = "ntnx-sql-svc","ntnx-xda-svc","ntnx-exc-svc","ntnx-bck-svc","ntnx-psr-svc","ntnx-ntx-svc";

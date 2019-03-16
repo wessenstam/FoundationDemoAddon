@@ -4,7 +4,7 @@ Function Wrap-Create-SSP-Groups-Projects{
     $datavar
    ) 
   
-   $Customers = "Customer-A","Customer-B","Customer-C","Customer-D","Customer-E","Customer-F";
+   $Customers = "Customer-A","Customer-B","Customer-C"
    
  
   $subnet = REST-Query-Subnet -ClusterPC_IP $datafixed.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -networkname $datafixed.nw1name -debug $datavar.debug

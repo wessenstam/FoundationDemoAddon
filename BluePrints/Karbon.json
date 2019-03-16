@@ -1,0 +1,1128 @@
+{
+	"spec": {
+		"description": "Kubernetes Dashboard: https:\/\/\/api\/v1\/namespaces\/kube-system\/services\/https:kubernetes-dashboard:\/proxy\/",
+		"resources": {
+			"client_attrs": {
+				"b2598909_deployment": {
+					"y": -521.9109125134,
+					"x": -18.0721873334
+				}
+			},
+			"service_definition_list": [{
+				"singleton": false,
+				"action_list": [{
+					"description": "System action for creating an application",
+					"type": "system",
+					"critical": false,
+					"runbook": {
+						"task_definition_list": [{
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [{
+								"kind": "app_task",
+								"name": "Deploy Karbon Cluster"
+							}, {
+								"kind": "app_task",
+								"name": "Install Epoch"
+							}, {
+								"kind": "app_task",
+								"name": "Install Kubernetes CLI"
+							}, {
+								"kind": "app_task",
+								"name": "Install Helm"
+							}, {
+								"kind": "app_task",
+								"name": "Install Heapster"
+							}, {
+								"kind": "app_task",
+								"name": "Install MetalLB"
+							}, {
+								"kind": "app_task",
+								"name": "Install Kubernetes Dashboard"
+							}, {
+								"kind": "app_task",
+								"name": "Install Prometheus and Grafana"
+							}],
+							"name": "5476f72a_dag",
+							"attrs": {
+								"edges": [{
+									"from_task_reference": {
+										"kind": "app_task",
+										"name": "Deploy Karbon Cluster"
+									},
+									"edge_type": "user_defined",
+									"type": "",
+									"to_task_reference": {
+										"kind": "app_task",
+										"name": "Install Kubernetes CLI"
+									}
+								}, {
+									"from_task_reference": {
+										"kind": "app_task",
+										"name": "Install MetalLB"
+									},
+									"edge_type": "user_defined",
+									"type": "",
+									"to_task_reference": {
+										"kind": "app_task",
+										"name": "Install Kubernetes Dashboard"
+									}
+								}, {
+									"from_task_reference": {
+										"kind": "app_task",
+										"name": "Install Helm"
+									},
+									"edge_type": "user_defined",
+									"type": "",
+									"to_task_reference": {
+										"kind": "app_task",
+										"name": "Install Heapster"
+									}
+								}, {
+									"from_task_reference": {
+										"kind": "app_task",
+										"name": "Install Heapster"
+									},
+									"edge_type": "user_defined",
+									"type": "",
+									"to_task_reference": {
+										"kind": "app_task",
+										"name": "Install MetalLB"
+									}
+								}, {
+									"from_task_reference": {
+										"kind": "app_task",
+										"name": "Install Kubernetes Dashboard"
+									},
+									"edge_type": "user_defined",
+									"type": "",
+									"to_task_reference": {
+										"kind": "app_task",
+										"name": "Install Prometheus and Grafana"
+									}
+								}, {
+									"from_task_reference": {
+										"kind": "app_task",
+										"name": "Install Kubernetes CLI"
+									},
+									"edge_type": "user_defined",
+									"type": "",
+									"to_task_reference": {
+										"kind": "app_task",
+										"name": "Install Helm"
+									}
+								}, {
+									"from_task_reference": {
+										"kind": "app_task",
+										"name": "Install Kubernetes CLI"
+									},
+									"edge_type": "user_defined",
+									"type": "",
+									"to_task_reference": {
+										"kind": "app_task",
+										"name": "Install Epoch"
+									}
+								}],
+								"type": ""
+							},
+							"timeout_secs": "0",
+							"type": "DAG",
+							"variable_list": []
+						}, {
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "Deploy Karbon Cluster",
+							"attrs": {
+								"exit_status": [],
+								"script": "#!\/bin\/bash\n\nset -ex\n\ngit clone --quiet https:\/\/github.com\/pipoe2h\/ansible-nutanix.git\ncat <<EOF > karbon_k8s_cluster.yml\n---\npe_cluster_name: @@{PE_CLUSTER_NAME}@@\npe_storagecontainer_name: @@{PE_STORAGECONTAINER_NAME}@@\npe_network_name: @@{PE_NETWORK_NAME}@@\n\nkarbon_k8s_cluster_name: @@{KARBON_K8S_CLUSTER_NAME}@@\nkarbon_k8s_cluster_description: @@{KARBON_K8S_CLUSTER_DESCRIPTION}@@\nkarbon_k8s_template_name: @@{KARBON_K8S_TEMPLATE_NAME}@@ # acs-centos or acs-ubuntu\nkarbon_k8s_version: @@{KARBON_K8S_VERSION}@@ # v1.8.13, v1.9.6 or v1.10.3\nkarbon_k8s_service_cidr: @@{KARBON_K8S_SERVICE_CIDR}@@ # 172.19.0.0\/16\nkarbon_k8s_pod_cidr: @@{KARBON_K8S_POD_CIDR}@@ # 172.20.0.0\/16\nkarbon_k8s_api_fqdn: @@{KARBON_K8S_API_FQDN}@@ # ''\n\nkarbon_etcd_instances: @@{KARBON_ETCD_INSTANCES}@@ # 1, 3 or 5\nkarbon_etcd_cpu: @@{KARBON_ETCD_CPU}@@ # Minimum 2\nkarbon_etcd_memory: @@{KARBON_ETCD_MEMORY}@@ # Minimum 8192\nkarbon_etcd_disk: @@{KARBON_ETCD_DISK}@@ # Recommended 40960\n\nkarbon_master_cpu: @@{KARBON_MASTER_CPU}@@ # Minimum 2\nkarbon_master_memory: @@{KARBON_MASTER_MEMORY}@@ # Minimum 4096\nkarbon_master_disk: @@{KARBON_MASTER_DISK}@@ # Recommended 122880\n\nkarbon_worker_instances: @@{KARBON_WORKER_INSTANCES}@@ # 1 or more\nkarbon_worker_cpu: @@{KARBON_WORKER_CPU}@@ # Minimum 2\nkarbon_worker_memory: @@{KARBON_WORKER_MEMORY}@@ # Minimum 4096\nkarbon_worker_disk: @@{KARBON_WORKER_DISK}@@ # Recommended 122880\nEOF\n\ncat <<EOF > inventory\n@@{PC_ADDRESS}@@\nEOF\n\ncd ansible-nutanix && ansible-playbook -i ..\/inventory -e @..\/karbon_k8s_cluster.yml \\\n-e \"pc_username=@@{PC_USERNAME}@@ pc_password=@@{PC_PASSWORD}@@\" \\\nroles\/pipoe2h.ntnx_karbon-create_cluster\/playbook.yml\n",
+								"script_type": "sh",
+								"type": "",
+								"command_line_args": "",
+								"login_credential_local_reference": {
+									"kind": "app_credential",
+									"name": "SSH_KEY"
+								}
+							},
+							"timeout_secs": "0",
+							"type": "EXEC",
+							"variable_list": []
+						}, {
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "Install Epoch",
+							"attrs": {
+								"exit_status": [],
+								"script": "#!\/bin\/bash\n\nset -ex\n\nmkdir -p k8s-addons\/epoch\ncd k8s-addons\/epoch\n\necho '---\napiVersion: v1\nkind: Namespace\nmetadata:\n  name: epoch\n---\napiVersion: extensions\/v1beta1\nkind: DaemonSet\nmetadata:\n  namespace: epoch\n  name: collector\n  labels:\n    app: epoch\n    component: collector\nspec:\n  minReadySeconds: 0\n  updateStrategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxUnavailable: 1\n  template:\n    metadata:\n      labels:\n        app: epoch\n        component: collector\n    spec:\n      hostNetwork: true\n      dnsPolicy: ClusterFirstWithHostNet\n      containers:\n      - name: collector\n        image: gcr.io\/nutanix-epoch\/collectors:latest\n        command: [\"\/bin\/bash\",\"-c\",\"while true ; do EPOCH_AOC_HOST=$EPOCH_SERVICE_HOST \/opt\/nutanix\/epoch\/collectors\/start.sh ; echo Exiting, possibly to upgrade ; sleep 5 ; done\"]\n        securityContext:\n          capabilities:\n            add:\n            - NET_RAW\n            - NET_ADMIN\n        env:\n        # Please DO NOT prepend http:\/\/ or https:\/\/ to the EPOCH_SERVICE_HOST value\n        - name: EPOCH_SERVICE_HOST\n          value: @@{epoch_service_host}@@\n        - name: EPOCH_ORGANIZATION_ID\n          value: @@{epoch_org_id}@@\n        - name: EPOCH_ANALYSIS_DEPTH\n          value: \"layer4\"\n        - name: EPOCH_INTERFACE\n          value: \"any\"\n        - name: DEPLOY_ENV\n          value: \"docker\"\n        - name: KUBERNETES\n          value: \"yes\"\n        - name: SD_BACKEND\n          value: \"docker\"\n        resources:\n          requests:\n            memory: \"512Mi\"\n            cpu: \"1000m\"\n          limits:\n            memory: \"1Gi\"\n            cpu: \"2000m\"\n        volumeMounts:\n        - name: cgroup\n          mountPath: \/host\/sys\/fs\/cgroup\/\n          readOnly: true\n        - name: proc\n          mountPath: \/host\/proc\/\n          readOnly: true\n        - name: docker-sock\n          mountPath: \/var\/run\/docker.sock\n          readOnly: true\n      volumes:\n      - name: cgroup\n        hostPath:\n          path: \/sys\/fs\/cgroup\/\n      - name: proc\n        hostPath:\n          path: \/proc\/\n      - name: docker-sock\n        hostPath:\n          path: \/var\/run\/docker.sock' | tee epoch.yaml\n\nkubectl create -f epoch.yaml",
+								"script_type": "sh",
+								"type": "",
+								"command_line_args": "",
+								"login_credential_local_reference": {
+									"kind": "app_credential",
+									"name": "SSH_KEY"
+								}
+							},
+							"timeout_secs": "0",
+							"type": "EXEC",
+							"variable_list": []
+						}, {
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "Install Kubernetes CLI",
+							"attrs": {
+								"exit_status": [],
+								"script": "#!\/bin\/bash\nset -ex\n\ncurl -LO https:\/\/storage.googleapis.com\/kubernetes-release\/release\/$(curl -s https:\/\/storage.googleapis.com\/kubernetes-release\/release\/stable.txt)\/bin\/linux\/amd64\/kubectl\nchmod +x .\/kubectl\nsudo mv .\/kubectl \/usr\/local\/bin\/kubectl",
+								"script_type": "sh",
+								"type": "",
+								"command_line_args": "",
+								"login_credential_local_reference": {
+									"kind": "app_credential",
+									"name": "SSH_KEY"
+								}
+							},
+							"timeout_secs": "0",
+							"type": "EXEC",
+							"variable_list": []
+						}, {
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "Install Helm",
+							"attrs": {
+								"exit_status": [],
+								"script": "#!\/bin\/bash\n\nset -ex\n\nsudo yum install -y git\n\nmkdir -p k8s-addons\/helm\ncd k8s-addons\/helm\n\ncurl https:\/\/raw.githubusercontent.com\/helm\/helm\/master\/scripts\/get > get_helm.sh\nchmod 700 get_helm.sh\n.\/get_helm.sh\n\nhelm init --client-only\nhelm plugin install https:\/\/github.com\/rimusz\/helm-tiller",
+								"script_type": "sh",
+								"type": "",
+								"command_line_args": "",
+								"login_credential_local_reference": {
+									"kind": "app_credential",
+									"name": "SSH_KEY"
+								}
+							},
+							"timeout_secs": "0",
+							"type": "EXEC",
+							"variable_list": []
+						}, {
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "Install Heapster",
+							"attrs": {
+								"exit_status": [],
+								"script": "#!\/bin\/bash\n\nset -ex\n\nhelm tiller start-ci\nexport HELM_HOST=localhost:44134\n\nhelm install --name heapster --namespace kube-system stable\/heapster \n\nhelm tiller stop\n",
+								"script_type": "sh",
+								"type": "",
+								"command_line_args": "",
+								"login_credential_local_reference": {
+									"kind": "app_credential",
+									"name": "SSH_KEY"
+								}
+							},
+							"timeout_secs": "0",
+							"type": "EXEC",
+							"variable_list": []
+						}, {
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "Install MetalLB",
+							"attrs": {
+								"exit_status": [],
+								"script": "#!\/bin\/bash\n\nset -ex\n\nmkdir -p k8s-addons\/metallb\ncd k8s-addons\/metallb\n\nhelm tiller start-ci\nexport HELM_HOST=localhost:44134\n\nhelm install --name metallb --set rbac.create=false stable\/metallb --namespace metallb-system\n\nhelm tiller stop\n\necho '---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  namespace: metallb-system\n  name: metallb-config\ndata:\n  config: |\n    address-pools:\n    - name: my-ip-space\n      protocol: layer2\n      addresses:\n      - @@{METALLB_RANGE}@@' | tee layer2-config.yaml\n\nkubectl create -f layer2-config.yaml",
+								"script_type": "sh",
+								"type": "",
+								"command_line_args": "",
+								"login_credential_local_reference": {
+									"kind": "app_credential",
+									"name": "SSH_KEY"
+								}
+							},
+							"timeout_secs": "0",
+							"type": "EXEC",
+							"variable_list": []
+						}, {
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "Install Kubernetes Dashboard",
+							"attrs": {
+								"exit_status": [],
+								"script": "#!\/bin\/bash\n\nset -ex\n\nhelm tiller start-ci\nexport HELM_HOST=localhost:44134\n\nhelm install --name kubernetes-dashboard stable\/kubernetes-dashboard --set service.type=LoadBalancer --namespace kube-system\n\nhelm tiller stop",
+								"script_type": "sh",
+								"type": "",
+								"command_line_args": "",
+								"login_credential_local_reference": {
+									"kind": "app_credential",
+									"name": "SSH_KEY"
+								}
+							},
+							"timeout_secs": "0",
+							"type": "EXEC",
+							"variable_list": []
+						}, {
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "Install Prometheus and Grafana",
+							"attrs": {
+								"exit_status": [],
+								"script": "#!\/bin\/bash\n\nset -ex\n\nmkdir -p k8s-addons\/prometheus_grafana\ncd k8s-addons\/prometheus_grafana\n\nhelm tiller start-ci\nexport HELM_HOST=localhost:44134\n\nhelm repo add coreos https:\/\/s3-eu-west-1.amazonaws.com\/coreos-charts\/stable\/\n\nhelm install coreos\/prometheus-operator --name prometheus-operator --namespace monitoring --timeout 600\nhelm install coreos\/kube-prometheus --name kube-prometheus --namespace monitoring --timeout 600\n\nhelm tiller stop\n\necho '---\napiVersion: v1\nkind: Service\nmetadata:\n  name: grafana-svc\n  namespace: monitoring\nspec:\n  type: LoadBalancer\n  ports:\n  - name: web\n    port: 3000\n    protocol: TCP\n    targetPort: web\n  selector:\n    app: kube-prometheus-grafana' | tee grafana-svc.yaml\n\nkubectl create -f grafana-svc.yaml",
+								"script_type": "sh",
+								"type": "",
+								"command_line_args": "",
+								"login_credential_local_reference": {
+									"kind": "app_credential",
+									"name": "SSH_KEY"
+								}
+							},
+							"timeout_secs": "0",
+							"type": "EXEC",
+							"variable_list": []
+						}],
+						"description": "",
+						"name": "c4914f53_runbook",
+						"main_task_local_reference": {
+							"kind": "app_task",
+							"name": "5476f72a_dag"
+						},
+						"variable_list": []
+					},
+					"name": "action_create"
+				}, {
+					"description": "System action for deleting an application. Deletes created VMs as well",
+					"type": "system",
+					"critical": false,
+					"runbook": {
+						"task_definition_list": [{
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "ca458ea0_dag",
+							"attrs": {
+								"edges": [],
+								"type": ""
+							},
+							"timeout_secs": "0",
+							"type": "DAG",
+							"variable_list": []
+						}],
+						"description": "",
+						"name": "f90ccdca_runbook",
+						"main_task_local_reference": {
+							"kind": "app_task",
+							"name": "ca458ea0_dag"
+						},
+						"variable_list": []
+					},
+					"name": "action_delete"
+				}, {
+					"description": "System action for restarting an application",
+					"type": "system",
+					"critical": false,
+					"runbook": {
+						"task_definition_list": [{
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "db6bb9e6_dag",
+							"attrs": {
+								"edges": [],
+								"type": ""
+							},
+							"timeout_secs": "0",
+							"type": "DAG",
+							"variable_list": []
+						}],
+						"description": "",
+						"name": "d1f37a92_runbook",
+						"main_task_local_reference": {
+							"kind": "app_task",
+							"name": "db6bb9e6_dag"
+						},
+						"variable_list": []
+					},
+					"name": "action_restart"
+				}, {
+					"description": "System action for starting an application",
+					"type": "system",
+					"critical": false,
+					"runbook": {
+						"task_definition_list": [{
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "1dc1c3e6_dag",
+							"attrs": {
+								"edges": [],
+								"type": ""
+							},
+							"timeout_secs": "0",
+							"type": "DAG",
+							"variable_list": []
+						}],
+						"description": "",
+						"name": "5f6def85_runbook",
+						"main_task_local_reference": {
+							"kind": "app_task",
+							"name": "1dc1c3e6_dag"
+						},
+						"variable_list": []
+					},
+					"name": "action_start"
+				}, {
+					"description": "System action for stopping an application",
+					"type": "system",
+					"critical": false,
+					"runbook": {
+						"task_definition_list": [{
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"child_tasks_local_reference_list": [],
+							"name": "a1cdba7d_dag",
+							"attrs": {
+								"edges": [],
+								"type": ""
+							},
+							"timeout_secs": "0",
+							"type": "DAG",
+							"variable_list": []
+						}],
+						"description": "",
+						"name": "2d0e4e29_runbook",
+						"main_task_local_reference": {
+							"kind": "app_task",
+							"name": "a1cdba7d_dag"
+						},
+						"variable_list": []
+					},
+					"name": "action_stop"
+				}],
+				"depends_on_list": [],
+				"name": "CentOS",
+				"port_list": [],
+				"tier": "",
+				"variable_list": [],
+				"description": ""
+			}],
+			"substrate_definition_list": [{
+				"description": "",
+				"action_list": [],
+				"type": "AHV_VM",
+				"name": "subCentos",
+				"readiness_probe": {
+					"connection_type": "SSH",
+					"retries": "5",
+					"disable_readiness_probe": false,
+					"address": "@@{platform.status.resources.nic_list[0].ip_endpoint_list[0].ip}@@",
+					"delay_secs": "60",
+					"connection_port": 22,
+					"login_credential_local_reference": {
+						"kind": "app_credential",
+						"name": "SSH_KEY"
+					}
+				},
+				"editables": {
+					"create_spec": {
+						"resources": {
+							"nic_list": {},
+							"serial_port_list": {},
+							"disk_list": {}
+						}
+					}
+				},
+				"os_type": "Linux",
+				"create_spec": {
+					"name": "centos-@@{calm_array_index}@@-@@{calm_time}@@",
+					"resources": {
+						"nic_list": [{
+							"nic_type": "NORMAL_NIC",
+							"ip_endpoint_list": [],
+							"network_function_chain_reference": null,
+							"network_function_nic_type": "INGRESS",
+							"mac_address": "",
+							"subnet_reference": {
+								"kind": "subnet",
+								"type": "",
+								"name": "",
+								"uuid": "---SUBNETREF---"
+							},
+							"type": ""
+						}],
+						"serial_port_list": [],
+						"guest_tools": null,
+						"num_vcpus_per_socket": 1,
+						"num_sockets": 1,
+						"gpu_list": [],
+						"memory_size_mib": 1024,
+						"parent_reference": null,
+						"hardware_clock_timezone": "",
+						"guest_customization": {
+							"cloud_init": {
+								"meta_data": "",
+								"type": "",
+								"user_data": "#cloud-config\nchpasswd:\n  list: |\n    centos:@@{INSTANCE_PASSWORD}@@\n  expire: False\nusers:\n  - name: centos\n    ssh-authorized-keys:\n      - @@{INSTANCE_PUBLIC_KEY}@@\n    sudo: ['ALL=(ALL) NOPASSWD:ALL']"
+							},
+							"type": "",
+							"sysprep": null
+						},
+						"power_state": "ON",
+						"type": "",
+						"boot_config": {
+							"boot_device": {
+								"type": "",
+								"disk_address": {
+									"type": "",
+									"device_index": 0,
+									"adapter_type": "SCSI"
+								}
+							},
+							"type": "",
+							"mac_address": ""
+						},
+						"disk_list": [{
+							"data_source_reference": {
+								"kind": "app_package",
+								"type": "",
+								"name": "CENTOS_KVM",
+								"uuid": "3f71fbce-fb74-4f6f-8429-190ab377f827"
+							},
+							"type": "",
+							"disk_size_mib": 0,
+							"volume_group_reference": null,
+							"device_properties": {
+								"type": "",
+								"disk_address": {
+									"type": "",
+									"device_index": 0,
+									"adapter_type": "SCSI"
+								},
+								"device_type": "DISK"
+							}
+						}]
+					},
+					"availability_zone_reference": null,
+					"backup_policy": null,
+					"type": "",
+					"cluster_reference": null,
+					"categories": ""
+				},
+				"variable_list": []
+			}],
+			"credential_definition_list": [{
+				"username": "centos",
+				"description": "",
+				"type": "KEY",
+				"secret": {
+					"attrs": {
+						"is_secret_modified": true },
+					"value": "---SSHPrivateKEYREF---"
+				},
+				"name": "SSH_KEY",
+				"editables": {
+					"username": true
+				}
+			}],
+			"package_definition_list": [{
+				"description": "",
+				"action_list": [],
+				"type": "SUBSTRATE_IMAGE",
+				"service_local_reference_list": [],
+				"name": "CENTOS_KVM",
+				"version": "",
+				"options": {
+					"type": "",
+					"name": "CentOS7-GenericCloud",
+					"resources": {
+						"image_type": "DISK_IMAGE",
+						"checksum": {
+							"checksum_algorithm": "",
+							"type": "",
+							"checksum_value": ""
+						},
+						"source_uri": "https:\/\/cloud.centos.org\/centos\/7\/images\/CentOS-7-x86_64-GenericCloud.qcow2",
+						"version": {
+							"product_version": "7.4",
+							"type": "",
+							"product_name": "CentOS7-GenericCloud"
+						},
+						"architecture": "X86_64",
+						"type": ""
+					},
+					"description": ""
+				},
+				"variable_list": []
+			}, {
+				"description": "",
+				"action_list": [],
+				"type": "DEB",
+				"service_local_reference_list": [{
+					"kind": "app_service",
+					"name": "CentOS"
+				}],
+				"name": "prereq_karbon_provisioning",
+				"version": "",
+				"options": {
+					"install_runbook": {
+						"task_definition_list": [{
+							"target_any_local_reference": {
+								"kind": "app_package",
+								"name": "prereq_karbon_provisioning"
+							},
+							"retries": "0",
+							"description": "",
+							"message_list": [],
+							"child_tasks_local_reference_list": [{
+								"kind": "app_task",
+								"name": "Install prereqs"
+							}],
+							"name": "44857477_dag",
+							"state": "ACTIVE",
+							"attrs": {
+								"edges": [],
+								"type": ""
+							},
+							"timeout_secs": "0",
+							"type": "DAG",
+							"variable_list": []
+						}, {
+							"target_any_local_reference": {
+								"kind": "app_service",
+								"name": "CentOS"
+							},
+							"retries": "0",
+							"description": "",
+							"message_list": [],
+							"child_tasks_local_reference_list": [],
+							"name": "Install prereqs",
+							"state": "ACTIVE",
+							"attrs": {
+								"exit_status": [],
+								"script": "#!\/bin\/bash\nset -ex\nsudo yum update -y --quiet\nsudo hostnamectl set-hostname --static @@{name}@@\nsudo yum install -y --quiet git\n#Install Ntp\nsudo yum install -y --quiet ntp\nsudo ntpdate @@{NTP_SERVER}@@\n#Install Ansible\nsudo yum install -y --quiet epel-release\nsudo yum install -y --quiet python-pip ansible\nsudo pip install jinja2 --upgrade -q\n\n\n",
+								"script_type": "sh",
+								"type": "",
+								"command_line_args": "",
+								"login_credential_local_reference": {
+									"kind": "app_credential",
+									"name": "SSH_KEY"
+								}
+							},
+							"timeout_secs": "0",
+							"type": "EXEC",
+							"variable_list": []
+						}],
+						"description": "",
+						"name": "95503987_runbook",
+						"state": "ACTIVE",
+						"main_task_local_reference": {
+							"kind": "app_task",
+							"name": "44857477_dag"
+						},
+						"message_list": [],
+						"variable_list": []
+					},
+					"type": "",
+					"uninstall_runbook": {
+						"task_definition_list": [{
+							"target_any_local_reference": {
+								"kind": "app_package",
+								"name": "prereq_karbon_provisioning"
+							},
+							"retries": "0",
+							"description": "",
+							"message_list": [],
+							"child_tasks_local_reference_list": [],
+							"name": "3cbf1dcf_dag",
+							"state": "ACTIVE",
+							"attrs": {
+								"edges": [],
+								"type": ""
+							},
+							"timeout_secs": "0",
+							"type": "DAG",
+							"variable_list": []
+						}],
+						"description": "",
+						"name": "fab16de4_runbook",
+						"state": "ACTIVE",
+						"main_task_local_reference": {
+							"kind": "app_task",
+							"name": "3cbf1dcf_dag"
+						},
+						"message_list": [],
+						"variable_list": []
+					}
+				},
+				"variable_list": []
+			}],
+			"app_profile_list": [{
+				"deployment_create_list": [{
+					"type": "GREENFIELD",
+					"action_list": [],
+					"depends_on_list": [],
+					"name": "b2598909_deployment",
+					"published_service_local_reference_list": [],
+					"max_replicas": "1",
+					"package_local_reference_list": [{
+						"kind": "app_package",
+						"name": "prereq_karbon_provisioning"
+					}],
+					"substrate_local_reference": {
+						"kind": "app_substrate",
+						"name": "subCentos"
+					},
+					"min_replicas": "1",
+					"variable_list": [],
+					"description": ""
+				}],
+				"description": "",
+				"action_list": [],
+				"name": "Default",
+				"variable_list": [{
+					"val_type": "STRING",
+					"description": "",
+					"name": "INSTANCE_PASSWORD",
+					"type": "SECRET",
+					"label": "",
+					"attrs": {
+						"is_secret_modified": true
+					},
+					"value": "---INSTANCEPASSWORD---"
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "INSTANCE_PUBLIC_KEY",
+					"type": "LOCAL",
+					"value": "---PUBLICKKEYREF---",
+					"label": "",
+					"attrs": {
+						"type": ""
+					}
+
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_ETCD_CPU",
+					"type": "LOCAL",
+					"value": "4",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_ETCD_DISK",
+					"type": "LOCAL",
+					"value": "40960",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_ETCD_INSTANCES",
+					"type": "LOCAL",
+					"value": "1",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_ETCD_MEMORY",
+					"type": "LOCAL",
+					"value": "8192",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_K8S_API_FQDN",
+					"type": "LOCAL",
+					"value": "''",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_K8S_CLUSTER_DESCRIPTION",
+					"type": "LOCAL",
+					"value": "Provisioned by Calm",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_K8S_CLUSTER_NAME",
+					"type": "LOCAL",
+					"value": "@@{name}@@",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_K8S_POD_CIDR",
+					"type": "LOCAL",
+					"value": "172.20.0.0\/16",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_K8S_SERVICE_CIDR",
+					"type": "LOCAL",
+					"value": "172.19.0.0\/16",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_K8S_TEMPLATE_NAME",
+					"type": "LOCAL",
+					"value": "acs-centos",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_K8S_VERSION",
+					"type": "LOCAL",
+					"value": "v1.10.3",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_MASTER_CPU",
+					"type": "LOCAL",
+					"value": "4",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_MASTER_DISK",
+					"type": "LOCAL",
+					"value": "122880",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_MASTER_MEMORY",
+					"type": "LOCAL",
+					"value": "8192",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_WORKER_CPU",
+					"type": "LOCAL",
+					"value": "4",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_WORKER_DISK",
+					"type": "LOCAL",
+					"value": "122880",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_WORKER_INSTANCES",
+					"type": "LOCAL",
+					"value": "3",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "KARBON_WORKER_MEMORY",
+					"type": "LOCAL",
+					"value": "8192",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "NTP_SERVER",
+					"type": "LOCAL",
+					"value": "0.uk.pool.ntp.org",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "PC_ADDRESS",
+					"type": "LOCAL",
+					"value": "---PCIPREF---",
+					"label": "",
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "PC_PASSWORD",
+					"type": "SECRET",
+					"label": "",
+					"attrs": {
+						"is_secret_modified": true
+					},
+					"value": "---PCPASSREF---"
+
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "PC_USERNAME",
+					"type": "LOCAL",
+					"value": "---PCUSERNAMEREF---",
+					"label": "",
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "PE_CLUSTER_NAME",
+					"type": "LOCAL",
+					"value": "---PECLUSTERNAMEREF---",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "PE_NETWORK_NAME",
+					"type": "LOCAL",
+					"value": "---NETWORKNAMEREF---",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "PE_STORAGECONTAINER_NAME",
+					"type": "LOCAL",
+					"value": "---CONTAINERNAMEREF---",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "epoch_org_id",
+					"type": "LOCAL",
+					"value": "",
+					"label": "",
+					"attrs": {
+						"type": ""
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "epoch_service_host",
+					"type": "LOCAL",
+					"value": "",
+					"label": "",
+					"attrs": {
+						"type": ""
+					}
+				}, {
+					"val_type": "STRING",
+					"description": "",
+					"name": "METALLB_RANGE",
+					"type": "LOCAL",
+					"value": "---KARBONIPRANGEREF---",
+					"label": "",
+					"attrs": {
+						"type": ""
+					},
+					"editables": {
+						"value": true
+					}
+				}]
+			}],
+			"published_service_definition_list": [],
+			"default_credential_local_reference": {
+				"kind": "app_credential",
+				"name": "SSH_KEY"
+			},
+			"type": "USER"
+		},
+		"name": "TCS - Karbon Automated Deployment"
+	},
+	"api_version": "3.0",
+	"metadata": {
+		"last_update_time": "1548373284520428",
+		"kind": "blueprint",
+		"spec_version": 4,
+		"creation_time": "1548372065647973",
+		"name": "TCS - Karbon Automated Deployment",
+		"project_reference": {
+			"kind": "project",
+			"uuid": "---PROJECTREF---"
+		}
+	}
+}

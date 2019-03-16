@@ -187,7 +187,8 @@ Try{
                   {$_ -match "status monitor"} {
                     Send-SlackMsg -Text "Starting Status thread, please mute me." -Channel $RTM.Channel
                     $Pocname = (($message | where {$_ -match ":"}) -split ":")[1]
-                    Start-Process powershell.exe -ArgumentList "C:\HostedPocProvisioningService\TailLogDraft.ps1 -user $($rtm.user) -pocname $($Pocname)" 
+                    #Start-Process powershell.exe -ArgumentList "C:\HostedPocProvisioningService\TailLogDraft.ps1 -user $($rtm.user) -pocname $($Pocname)"
+                    sleep 120
                   }
                   {$_ -match "how old.*you|what your age"} {
                     Send-SlackMsg -Text "I was born on February 19 2019, yet i am not human" -Channel $RTM.Channel

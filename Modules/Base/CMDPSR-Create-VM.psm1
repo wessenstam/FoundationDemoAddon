@@ -18,6 +18,7 @@ Function CMDPSR-Create-VM {
     [string] $clusername,
     [string] $clpassword,
     [string] $DisksContainerName,
+    [string] $mode,
     [string] $debug
   )
 
@@ -74,9 +75,13 @@ Function CMDPSR-Create-VM {
     $network = Get-NTNXNetwork | where { $_.name -match $Networkname };
     if($network){;
       $nicSpec.networkuuid = $network.uuid;
-      $nicSpec.requestedIpAddress = $VMip
-      $nicSpec.requestIp = $VMip;
-  
+      if ($mode -eq "ReserveIP"){
+
+        write-log -message "Using DHCP Reservation for $vmname";
+
+        $nicSpec.requestedIpAddress = $VMip
+        $nicSpec.requestIp = $VMip;
+      }
       write-log -message "Network found, UUID Captured $($network.uuid)";
   
     } else {;
@@ -246,11 +251,16 @@ Function CMDPSR-Create-VM {
   
       write-log -message "Host is alive at $IP"
       write-log -message "Changing the VM IPaddress and name using PowerShell Remoting.";
-  
-      $connect = invoke-command -computername $ip -credential $credential {;
-        Rename-Computer -NewName $Args[3] -force; New-NetIPAddress -IPAddress $args[0] -DefaultGateway $args[1] -PrefixLength $args[2] -InterfaceIndex (Get-NetAdapter).InterfaceIndex ; shutdown -r -t 1;
-      } -Args $VMip,$VMgw,$subnetprefix,$VMname -asjob;
-  
+      if ($mode -eq "ReserveIP"){
+        $connect = invoke-command -computername $ip -credential $credential {;
+          Rename-Computer -NewName $Args[3] -force; 
+        } -Args $VMip,$VMgw,$subnetprefix,$VMname -asjob;
+      } else{
+        $connect = invoke-command -computername $ip -credential $credential {;
+          Rename-Computer -NewName $Args[3] -force; New-NetIPAddress -IPAddress $args[0] -DefaultGateway $args[1] -PrefixLength $args[2] -InterfaceIndex (Get-NetAdapter).InterfaceIndex ; shutdown -r -t 1;
+        } -Args $VMip,$VMgw,$subnetprefix,$VMname -asjob;
+      }
+
       write-log -message "Sleeping 60 after command execution.";
   
       sleep 60;

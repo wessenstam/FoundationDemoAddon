@@ -44,14 +44,14 @@ $date = get-date
 write-host "$(get-date -format "hh:mm:ss") | INFO  | Backend Process active"
 do {
   $singleusermode = (get-item $SingleModelck -ea:0).lastwritetime | where {$_ -ge (get-date).addminutes(-90)}
-  $object = Get-IncommingueueItem -queuepath $queuepath -incoming $incomingqueue -AutoQueueTimer $AutoQueueTimer -ready $ready
-  $datagen = LIB-Config-DetailedDataSet -ClusterPE_IP $object.PEClusterIP -pocname $object.POCname -debug $object.debug -Sendername $object.Sendername
+  $object = Get-IncommingueueItem -queuepath $queuepath -incoming $incomingqueue -AutoQueueTimer $AutoQueueTimer -ready $ready -manual $manualqueue
+  $datagen = LIB-Config-DetailedDataSet -datavar $object
   if ($object){
     Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "Queued" -debug $object.debug -datagen $datagen
   }
   $validation = Validate-QueueItem -processingmode "Auto" -incomingqueue $incomingqueue -queuepath $queuepath -outgoingqueue $Outgoing -Readyqueue $Ready -Manualqueue $Manualqueue -AutoQueueTimer $AutoQueueTimer
   if ($validation -match "Error"){
-    Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "QueueError" -debug $object.debug -validation $validation  -datagen $datagen
+    Lib-Send-Confirmation -reciever $object.SenderEMail -datavar $object -mode "QueueError" -debug $object.debug -validation $validation -datagen $datagen
   }
   if (!$singleusermode){
     $validation = Validate-QueueItem -processingmode "NOW" -incomingqueue $incomingqueue -queuepath $queuepath -outgoingqueue $Outgoing -Readyqueue $Ready -Manualqueue $Manualqueue

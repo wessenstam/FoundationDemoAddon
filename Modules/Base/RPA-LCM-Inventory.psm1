@@ -83,19 +83,21 @@ Function RPA-LCM-Inventory {
     sleep $IEDelay;
     sleep $IEDelay;
   } until ((($var -match "username" -or $ie.document.IHTMLDocument2_body.outerhtml -match "Manage Dashboards|OK, got it|Available Updates|Loading") -AND $ie.documenT.title -MATCH "Nutanix|Prism Central") -or $count1 -ge 10 )  
-  if ($count1 -ge 52){
+  if ($count1 -ge 10){
 
-    write-log -message "We failed loading the PC page after 26 minutes"
+    write-log -message "We failed loading the PC page"
+    
+    $failed = 1
 
   }
   if ($ie.document.IHTMLDocument2_body.outerhtml -match "Manage Dashboards|OK, got it|Available Updates|Loading" -or $ie.document.IHTMLDocument2_body.outerhtml -match "Available Updates" ){
     if ($debug -ge 1){;
-
+      
       write-log -message "We are already logged in"
 
     };
   };
-  if ($ie.document.IHTMLDocument2_body.outerhtml -notmatch "Manage Dashboards|OK, got it|Available Updates|Loading" -and $ie.document.IHTMLDocument2_body.innerhtml -notmatch "company"){;
+  if ($ie.document.IHTMLDocument2_body.outerhtml -notmatch "Manage Dashboards|OK, got it|Available Updates|Loading" -and $ie.document.IHTMLDocument2_body.innerhtml -notmatch "company" -and $failed -ne 1 ){;
     $doc.IHTMLDocument3_getElementsByTagName("Input") | % {;
       if ($_.id -ne $null){;
         if ($_.id.Contains($LoginButton_ID)) { $Button = $_ };
@@ -140,7 +142,7 @@ Function RPA-LCM-Inventory {
   }
   sleep $IEDelay;
   
-  if ($ie.document.IHTMLDocument2_body.outerhtml -match "OK, got it"){;
+  if ($ie.document.IHTMLDocument2_body.outerhtml -match "OK, got it" -and $failed -ne 1){;
     if ($debug -ge 1){;
       write-log -message "Bypassing Seach Helper";
     };
@@ -151,7 +153,7 @@ Function RPA-LCM-Inventory {
     };    
   };
   
-  if ($mode -eq "stage1"){
+  if ($mode -eq "stage1" -and $failed -ne 1){
     $LCMTrigger =  0
     do {
       $LCMTrigger++
@@ -199,7 +201,7 @@ Function RPA-LCM-Inventory {
            } catch {
              write-log -message "There is still Options dropdown at this time, this is unexpected, retry.";         
            }
-        } until ($optionssuccess -eq 1 -or $countoptions -eq 5)
+        } until ($optionssuccess -eq 1 -or $countoptions -ge 5)
       }
       $countwaitinventory = 0
     
@@ -266,7 +268,7 @@ Function RPA-LCM-Inventory {
   
       $avail = "Searching"
     } until ($LCMSearch -eq 1 -or $LCMTrigger -eq 2)
-  } else {
+  } elseif ($failed -ne 1) {
     do { 
       $countwaitinventory++ 
       sleep 50

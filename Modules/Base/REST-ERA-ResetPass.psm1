@@ -12,36 +12,37 @@ Function REST-ERA-ResetPass {
   $defaultpass = "Nutanix/4u"
 
   $URL = "https://$($EraIP):8443/era/v0.8/auth/update"
-  $Payload= @{
-    password="$clpassword"
-  } 
+  $URL1 = "https://$($EraIP):8443/era/v0.8/auth/validate?token=true&expire=15"
+
   do {
     write-log -message "Using URL $URL"
 
-    $JSON = $Payload | convertto-json
-   # try{
-      $credPair = "$($clusername):$($defaultpass)"
-      $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
-      $headers = @{ Authorization = "Basic $encodedCredentials" }
-      $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+    $Json = @"
+{ "password": "$($clpassword)" }
+"@ 
+
+    $credPair = "$($clusername):$($defaultpass)"
+    $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+    $headers = @{ Authorization = "Basic $encodedCredentials" }
+    try {
+      $task = Invoke-RestMethod -Uri $URL1 -method "post" -body $JSON -ContentType 'application/json' -headers $headers; 
+    } catch {
+
+      write-log -message "Password is expired"
+      try {
+        $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers; 
+      } catch {
+        $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
+      }
+    }
+
+    write-log -message "Password change Success"
+    if ($debug -ge 1){
+      $json | out-file c:\temp\erapass.json
+    }
+    $passreset = $true
   
-      write-log -message "Password change Success"
-  
-      $passreset = $true
-   # } catch {
-      sleep 10
-  
-     # try {
-     #   write-log -message "Default Password seems changed already, trying new password"
-    
-     #   $credPair = "$($clusername):$($clpassword)"
-     #   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
-     #   $headers = @{ Authorization = "Basic $encodedCredentials" }
-     #   $task = Invoke-RestMethod -Uri $URL -method "post" -body $JSON -ContentType 'application/json' -headers $headers;
-     #   $passreset = $true
-      ## }
-  
-   # }
+
   } until ($passreset -eq $true)
 
   if ($passreset -eq $true){

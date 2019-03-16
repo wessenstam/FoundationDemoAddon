@@ -8,8 +8,8 @@
 					"x": 121.7498661769
 				},
 				"475ef8f3_deployment": {
-					"y": -1747.1968149635,
-					"x": -1683.392990966
+					"y": -1250.1968149635,
+					"x": -1601.392990966
 				}
 			},
 			"service_definition_list": [{
@@ -281,7 +281,6 @@
 					"availability_zone_reference": null,
 					"backup_policy": null,
 					"type": "",
-					"cluster_reference": null,
 					"categories": {
 						"Environment": "Production",
 						"AppFamily": "DevOps"
@@ -289,33 +288,34 @@
 				},
 				"variable_list": []
 			}],
-			"credential_definition_list": [{
-				"username": "administrator",
-				"description": "",
-				"type": "PASSWORD",
-                "secret": {
-                  "attrs": {
-                    "is_secret_modified": true },
-                  "value": "---SYSPREPPASS---"
-                },
-				"name": "SysprepCreds",
-				"editables": {
-					"secret": true
-				}
-			}, {
-				"username": "administrator",
-				"description": "",
-				"type": "PASSWORD",
-                "secret": {
-                  "attrs": {
-                    "is_secret_modified": true },
-                  "value": "---SYSPREPPASS---"
-                },
-				"name": "DomainCreds",
-				"editables": {
-					"secret": true
-				}
-			}],
+            "credential_definition_list": [{
+              "username": "administrator",
+              "description": "",
+              "type": "PASSWORD",
+              "secret": {
+                "attrs": {
+                  "is_secret_modified": true },
+                "value": "---SYSPREPPASS---"
+              },
+              "name": "SysprepCreds",
+              "editables": {
+                "secret": true
+              }
+            }, {
+              "username": "administrator",
+              "description": "",
+              "type": "PASSWORD",
+              "secret": {
+                "attrs": {
+                  "is_secret_modified": true },
+                "value": "---SYSPREPPASS---"
+              },
+      
+              "name": "DomainCreds",
+              "editables": {
+                "secret": true
+              }
+            }],
 			"package_definition_list": [{
 				"description": "",
 				"action_list": [],
@@ -649,7 +649,7 @@
 							"state": "ACTIVE",
 							"attrs": {
 								"exit_status": [],
-								"script": "$DomainUsername = \"@@{DomainCreds.username}@@\";\n$DomainPassword = \"@@{DomainCreds.secret}@@\"; \n$domainname = \"@@{DomainFQDN}@@\";\n$Securepass = ConvertTo-SecureString -asPlainText -Force -String $DomainPassword;\n$credential = New-Object System.Management.Automation.PSCredential(\"$($DomainName)\\$($DomainUsername)\",$Securepass);\n$domainuser = \"$($DomainName)\\$($DomainUsername)\"\n$file = \"C:\\windows\\temp\\AddNLB.ps1\"\nwrite '$interface = get-netadapter' | out-file $file\nwrite '$nlbname = \"@@{IISAppName}@@.@@{DomainFQDN}@@\"' | out-file $file -append\nwrite '$CLIP = \"@@{NLBIP}@@\"' | out-file $file -append\nwrite '$IP = get-NetIPAddress | where {$_.InterfaceAlias -eq $interface.name -and $_.AddressFamily -eq \"IPv4\"}' | out-file $file -append\nwrite '$detail = Get-NetIPConfiguration' | out-file $file -append\nwrite '$nic_configuration = gwmi -computer .  -class \"win32_networkadapterconfiguration\" | Where-Object {$_.defaultIPGateway -ne $null}' | out-file $file -append\nwrite '$subnet = $nic_configuration.ipsubnet | where {$_ -match \"\\.\"}' | out-file $file -append\nwrite '$prefix = $IP.prefixlength' | out-file $file -append\nwrite '$nodename = Get-WMIObject Win32_ComputerSystem | Select-Object -ExpandProperty name;' | out-file $file -append\nwrite '$set = Get-NetIPAddress $CLIP -ea:0' | out-file $file -append\nwrite 'try {;' | out-file $file -append\nwrite '  $cluster = Get-NlbCluster $CLIP;' | out-file $file -append\nwrite '} catch {;' | out-file $file -append\nwrite '  try {;' | out-file $file -append\nwrite '    SLEEP 60' | out-file $file -append\nwrite '    $cluster = Get-NlbCluster $CLIP;' | out-file $file -append\nwrite '  } catch {;' | out-file $file -append\nwrite '    write-host \"NLB does not exist yet, creating.\";' | out-file $file -append\nwrite '  };' | out-file $file -append\nwrite '};' | out-file $file -append\nwrite '$nodes = Get-NlbClusterNode' | out-file $file -append\nwrite 'foreach ($node in $nodes){' | out-file $file -append\nwrite '  if ($env:computername -match $node.name){' | out-file $file -append\nwrite '    write \"Already Running\"' | out-file $file -append\nwrite '    $alreadyInstalled=1' | out-file $file -append\nwrite '    if ($node.state -notmatch \"Converged\"){' | out-file $file -append\nwrite '      shutdown -r -t 10' | out-file $file -append\nwrite '    }' | out-file $file -append\nwrite '  }' | out-file $file -append\nwrite '};' | out-file $file -append\nwrite 'if ($cluster -and $alreadyInstalled -ne 1){;' | out-file $file -append\nwrite '  $cluster | Add-NlbClusterNode -NewNodeName $nodename -NewNodeInterface $interface.name;' | out-file $file -append\nwrite '} elseif ($alreadyInstalled -ne 1){;' | out-file $file -append\nwrite '  $hide = New-NlbCluster -ClusterName $nlbname -InterfaceName $($interface.name) -ClusterPrimaryIP $CLIP -SubnetMask $subnet -OperationMode \"Unicast\" -ea:0;' | out-file $file -append\nwrite '};' | out-file $file -append\nwrite 'sleep 30' | out-file $file -append\nwrite 'if (!$set){' | out-file $file -append\nwrite '  New-NetIPAddress -IPAddress $CLIP -InterfaceAlias \"Ethernet\" -SkipAsSource $true -PrefixLength $prefix' | out-file $file -append\nwrite '}' | out-file $file -append\nwrite 'write-host \"Done\"' | out-file $file -append\n$jobname = \"CreateSetNLB\";\n$script = \"C:\\windows\\temp\\AddNLB.ps1\"\n$action = New-ScheduledTaskAction -Execute \"$pshome\\powershell.exe\" -Argument  \"$script > c:\\windows\\temp\\changeNLB.log\";\n$duration = ([timeSpan]::maxvalue);\n$repeat = (New-TimeSpan -minutes 1);\n$trigger =New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval $repeat -RepetitionDuration $duration;\n$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable -DontStopOnIdleEnd;\n$task = Register-ScheduledTask -TaskName $jobname -Action $action -Trigger $trigger -RunLevel Highest -User $domainuser -Password $DomainPassword -Settings $settings;\nGet-ScheduledTask \"CreateSetNLB\" | start-scheduledtask",
+								"script": "$DomainUsername = \"@@{DomainCreds.username}@@\";\n$DomainPassword = \"@@{DomainCreds.secret}@@\"; \n$domainname = \"@@{DomainFQDN}@@\";\n$Securepass = ConvertTo-SecureString -asPlainText -Force -String $DomainPassword;\n$credential = New-Object System.Management.Automation.PSCredential(\"$($DomainName)\\$($DomainUsername)\",$Securepass);\n$domainuser = \"$($DomainName)\\$($DomainUsername)\"\n$file = \"C:\\windows\\temp\\AddNLB.ps1\"\nwrite '$interface = get-netadapter' | out-file $file\nwrite '$nlbname = \"@@{IISAppName}@@.@@{DomainFQDN}@@\"' | out-file $file -append\nwrite '$CLIP = \"@@{NLBIP}@@\"' | out-file $file -append\nwrite '$IP = get-NetIPAddress | where {$_.InterfaceAlias -eq $interface.name -and $_.AddressFamily -eq \"IPv4\"}' | out-file $file -append\nwrite '$detail = Get-NetIPConfiguration' | out-file $file -append\nwrite '$nic_configuration = gwmi -computer .  -class \"win32_networkadapterconfiguration\" | Where-Object {$_.defaultIPGateway -ne $null}' | out-file $file -append\nwrite '$subnet = $nic_configuration.ipsubnet | where {$_ -match \"\\.\"}' | out-file $file -append\nwrite '$prefix = $IP.prefixlength' | out-file $file -append\nwrite '$nodename = Get-WMIObject Win32_ComputerSystem | Select-Object -ExpandProperty name;' | out-file $file -append\nwrite 'try {;' | out-file $file -append\nwrite '  $cluster = Get-NlbCluster $CLIP;' | out-file $file -append\nwrite '} catch {;' | out-file $file -append\nwrite '  write-host \"NLB does not exist yet, creating.\";' | out-file $file -append\nwrite '};' | out-file $file -append\nwrite 'if ($cluster){;' | out-file $file -append\nwrite '  $cluster | Add-NlbClusterNode -NewNodeName $nodename -NewNodeInterface $interface.name;' | out-file $file -append\nwrite '} else {;' | out-file $file -append\nwrite '  $hide = New-NlbCluster -ClusterName $nlbname -InterfaceName $($interface.name) -ClusterPrimaryIP $CLIP -SubnetMask $subnet -OperationMode \"Unicast\" -ea:0;' | out-file $file -append\nwrite '};' | out-file $file -append\nwrite 'write-host \"Done\"' | out-file $file -append\n$jobname = \"CreateSetNLB\";\n$script = \"C:\\windows\\temp\\AddNLB.ps1\"\n$action = New-ScheduledTaskAction -Execute \"$pshome\\powershell.exe\" -Argument  \"$script > c:\\windows\\temp\\changeNLB.log\";\n$duration = ([timeSpan]::maxvalue);\n$repeat = (New-TimeSpan -minutes 1);\n$trigger =New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval $repeat -RepetitionDuration $duration;\n$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable -DontStopOnIdleEnd;\n$task = Register-ScheduledTask -TaskName $jobname -Action $action -Trigger $trigger -RunLevel Highest -User $domainuser -Password $DomainPassword -Settings $settings;\nGet-ScheduledTask \"CreateSetNLB\" | start-scheduledtask",
 								"script_type": "npsscript",
 								"type": "",
 								"command_line_args": "",
@@ -692,7 +692,7 @@
 							"state": "ACTIVE",
 							"attrs": {
 								"exit_status": [],
-								"script": "$node = (Get-NlbClusterNode -ea:0) | where {$_.name -match $($env:computername)}\nIf (!$node){\n\t\"Going Down\"\n\tshutdown -r -t 8\n} Else {\n\t\"Healty Cluster\"\n}\nGet-ScheduledTask \"*Powershell*\" | Disable-scheduledtask\n",
+								"script": "$node = (Get-NlbClusterNode -ea:0) | where {$_.name -match $($env:computername)}\nIf (!$node){\n\t\"Going Down\"\n\tshutdown -r -t 8\n} Else {\n\t\"Healty Cluster\"\n}\n",
 								"script_type": "npsscript",
 								"type": "",
 								"command_line_args": "",
@@ -948,7 +948,7 @@
 					"description": "",
 					"name": "NLBIP",
 					"type": "LOCAL",
-					"value": "---NLBIP---",
+                    "value": "---NLBIP---",
 					"label": "",
 					"attrs": {
 						"type": ""
@@ -966,15 +966,15 @@
 	},
 	"api_version": "3.0",
 	"metadata": {
-		"last_update_time": "1551211311498080",
+		"last_update_time": "1551031917676722",
 		"kind": "blueprint",
 		"spec_version": 6,
-		"creation_time": "1551035686406241",
-		    "name": "IIS Customer Horizontal Scale",
+		"creation_time": "1551023211508680",
+		"name": "IIS Customer Horizontal Scale",
         "uuid": "---BLUEPRINTREF---",
         "project_reference": {
           "kind": "project",
           "uuid": "---PROJECTREF---"
         }
-  }
+	}
 }
