@@ -35,6 +35,15 @@ Function Wrap-Import-XPlay-Demo{
     write-log -message "Query Alert Type UUID"
   
     $AlertTypeUUID = REST-XPlay-Query-AlertUUID -datagen $datagen -datavar $datavar
+    if ($AlertTypeUUID -eq $null){
+      write-log -message "0? let me try that again."
+      $count = 0
+      do {
+        sleep 30
+        $count ++
+        $AlertTypeUUID = REST-XPlay-Query-AlertUUID -datagen $datagen -datavar $datavar
+      } until ($AlertTypeUUID -or $count -ge 5)
+    }
   
   }
 

@@ -19,7 +19,19 @@ Function Wrap-Create-KarbonCluster {
 
   $projects = REST-Query-Projects -ClusterPC_IP $datagen.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -debug $datavar.debug 
   $project = $projects.entities | where {$_.spec.name -match "Customer-B"}
+  if (!$project){
+    $count = 0
+    do {
+      $count++
 
+      write-log -message "Project is not created yet."
+
+      sleep 30
+      $projects = REST-Query-Projects -ClusterPC_IP $datagen.PCClusterIP -clpassword $datavar.pepass -clusername $datavar.peadmin -debug $datavar.debug 
+      $project = $projects.entities | where {$_.spec.name -match "Customer-B"}
+    }until ($project -or $count -ge 10)
+  }
+  sleep 90
   write-log -message "Creating BluePrint"
 
   $blueprint = REST-Import-Karbon-Blueprint -datagen $datagen -datavar $datavar -BPfilepath "$($BlueprintsPath)\Karbon.json" -subnetUUID $($subnet.metadata.uuid) -projectUUID $($project.metadata.uuid) 

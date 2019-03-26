@@ -16,7 +16,7 @@ Function Wrap-Create-ADForest-PC {
 
   write-log -message "Creating Second DC VM" -sev "CHAPTER"
 
-  $VM2 = CMDPSR-Create-VM -mode "FixedIP" -DisksContainerName $datagen.DiskContainerName -Subnetmask $datavar.InfraSubnetmask -Sysprepfile $ServerSysprepfile -Networkname $datagen.Nw1Name -VMname $datagen.DC2Name -ImageName $datagen.DC_ImageName -cpu 4 -ram 8192 -VMip $datagen.DC2IP -VMgw $datavar.InfraGateway -DNSServer1 $datagen.DC1IP -DNSServer2 $datagen.DC2IP -SysprepPassword $datagen.SysprepPassword -debug $datavar.debug -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass
+  $VM2 = CMDPSR-Create-VM -mode "FixedIP" -DisksContainerName $datagen.DiskContainerName -Subnetmask $datavar.InfraSubnetmask -Sysprepfile $ServerSysprepfile -Networkname $datagen.Nw1Name -VMname $datagen.DC2Name -ImageName $datagen.DC_ImageName -cpu 4 -ram 4096 -VMip $datagen.DC2IP -VMgw $datavar.InfraGateway -DNSServer1 $datagen.DC1IP -DNSServer2 $datagen.DC2IP -SysprepPassword $datagen.SysprepPassword -debug $datavar.debug -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass
     
   write-log -message "Join Second DC" -sev "CHAPTER"
     

@@ -751,6 +751,56 @@ Function REST-Query-DetailCluster {
   Return $task
 } 
 
+Function REST-ERA-Create-Low-ComputeProfile {
+  Param (
+    [object] $datagen,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+  $json = @"
+{
+  "type": "Compute",
+  "topology": "ALL",
+  "dbVersion": "ALL",
+  "properties": [{
+    "name": "CPUS",
+    "value": "1",
+    "description": "Number of CPUs in the VM"
+  }, {
+    "name": "CORE_PER_CPU",
+    "value": 4,
+    "description": "Number of cores per CPU in the VM"
+  }, {
+    "name": "MEMORY_SIZE",
+    "value": 16,
+    "description": "Total memory (GiB) for the VM"
+  }],
+  "name": "LOW_OOB_COMPUTE"
+}
+"@
+
+  $URL = "https://$($datagen.ERA1IP):8443/era/v0.8/profiles"
+
+  write-log -message "Creating Profile LOW_OOB_COMPUTE"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "POST" -body $json -ContentType 'application/json' -headers $headers
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "POST" -body $json -ContentType 'application/json' -headers $headers
+    Return $RespErr
+  }
+
+  Return $task
+} 
 
 Function REST-ERA-GetProfiles {
   Param (
@@ -905,6 +955,135 @@ Function REST-ERA-ProvisionDatabase {
   Return $task
 } 
 
+Function REST-ERA-RegisterOracle-ERA {
+  Param (
+    $dbname,
+    [string] $EraIP,
+    [string] $clpassword,
+    [string] $clusername,
+    [object] $ERACluster,
+    [string] $OracleIP,
+    [object] $SLA,
+    [string] $debug
+  )
+
+  write-log -message "Debug level is $debug";
+  write-log -message "Building Credential object"
+  $credPair = "$($clusername):$($clpassword)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Building Oracle Server Registration JSON"
+  write-log -message "Using databasename $($dbname) using ip $OracleIP"
+
+  $URL = "https://$($EraIP):8443/era/v0.8/databases"
+  $JSON = @"
+{
+  "vmAdd": true,
+  "applicationInfo": [{
+    "name": "application_type",
+    "value": "oracle_database"
+  }, {
+    "name": "listener_port",
+    "value": "1521"
+  }, {
+    "name": "working_dir",
+    "value": "/tmp"
+  }, {
+    "name": "era_deploy_base",
+    "value": "/opt/era_base"
+  }, {
+    "name": "create_era_drive",
+    "value": true
+  }, {
+    "name": "vm_ip",
+    "value": "$($OracleIP)"
+  }, {
+    "name": "vm_username",
+    "value": "oracle"
+  }, {
+    "name": "grid_home",          
+    "value": ""
+  }, {
+    "name": "oracle_home",
+    "value": "/u02/app/oracle/product/12.1.0/dbhome_1"
+  }, {
+    "name": "vm_password",
+    "value": "$($clpassword)"
+  }, {
+    "name": "oracle_sid",
+    "value": "$($dbname)"
+  }],
+  "forcedInstall": true,
+  "clusterId": "$($ERACluster.id)",
+  "tags": [],
+  "timeMachineInfo": {
+    "name": "$($dbname)_TM",
+    "description": "$($dbname)_TM",
+    "slaId": "$($SLA.ID)",
+    "schedule": {
+      "snapshotTimeOfDay": {
+        "hours": 1,
+        "minutes": 0,
+        "seconds": 0
+      },
+      "continuousSchedule": {
+        "enabled": true,
+        "logBackupInterval": 30,
+        "snapshotsPerDay": 1
+      },
+      "weeklySchedule": {
+        "enabled": true,
+        "dayOfWeek": "THURSDAY"
+      },
+      "monthlySchedule": {
+        "enabled": true,
+        "dayOfMonth": "21"
+      },
+      "quartelySchedule": {
+        "enabled": true,
+        "startMonth": "JANUARY",
+        "dayOfMonth": "21"
+      },
+      "yearlySchedule": {
+        "enabled": false,
+        "dayOfMonth": 31,
+        "month": "DECEMBER"
+      }
+    },
+    "tags": [],
+    "autoTuneLogDrive": true
+  },
+  "applicationSlaName": "$($sla.name)",
+  "applicationType": "oracle_database",
+  "autoTuneStagingDrive": true,
+  "eraBaseDirectory": "/opt/era_base",
+  "applicationHost": "$($OracleIP)",
+  "vmIp": "$($OracleIP)",
+  "vmUsername": "oracle",
+  "vmPassword": "$($clpassword)",
+  "applicationName": "$($dbname)",
+  "vmDescription": "Oracle 12 Server"
+}
+"@
+  if ($debug -ge 2){
+    $json | out-file c:\temp\ERAOracle.json
+  }
+  try {
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+  } catch{
+
+    write-log -message "Going once."
+
+    sleep 60
+    try {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    } catch {
+      $task = Invoke-RestMethod -Uri $URL -method "post" -body $json -ContentType 'application/json' -headers $headers;
+    }
+  }
+  Return $task
+} 
 
 
 Function REST-ERA-ProvisionServer {
@@ -1057,9 +1236,7 @@ Function REST-ERA-GetDBServers {
   Return $task
 } 
 
-
-
-Function REST-ERA-GetProfiles {
+Function REST-ERA-GetDatabases {
   Param (
     [string] $EraIP,
     [string] $clpassword,
@@ -1073,9 +1250,9 @@ Function REST-ERA-GetProfiles {
   $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
   $headers = @{ Authorization = "Basic $encodedCredentials" }
 
-  write-log -message "Get ERA Profiles"
+  write-log -message "Get ERA DB Servers"
 
-  $URL = "https://$($EraIP):8443/era/v0.8/profiles"
+  $URL = "https://$($EraIP):8443/era/v0.8/databases"
 
   try{
     $task = Invoke-RestMethod -Uri $URL -method "GET" -headers $headers;
@@ -1089,6 +1266,7 @@ Function REST-ERA-GetProfiles {
 
   Return $task
 } 
+
 
 
 Function REST-ERA-PostGresNWProfileCreate {
@@ -2930,6 +3108,571 @@ $Json = @"
   Return $task
 } 
 
+Function REST-Import-Generic-Blueprint {
+  Param (
+    [string] $BPfilepath,
+    [object] $datagen,
+    [string] $ProjectUUID,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+
+  $jsonstring = get-content $BPfilepath
+  $jsonstring = $jsonstring -replace "---PROJECTREF---", $($ProjectUUID)
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/import_json"
+
+  write-log -message "Executing Import"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $jsonstring -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $jsonstring -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+Function REST-PostGress-SSP-BluePrint-Launch {
+  Param (
+    [object] $datagen,
+    [string] $BPuuid,
+    [string] $taskUUID,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Replacing JSON String Variables"
+$Json = @"
+{
+ "spec": {
+   "app_profile_reference": {
+     "kind": "app_profile",
+     "name": "PostGresDB01_DEV",
+     "uuid": "$taskUUID"
+   },
+   "runtime_editables": {
+     "action_list": [
+       {
+       }
+     ],
+     "service_list": [
+       {
+       }
+     ],
+     "credential_list": [
+       {
+       }
+     ],
+     "substrate_list": [
+       {
+       }
+     ],
+     "package_list": [
+       {
+       }
+     ],
+     "app_profile": {
+     },
+     "task_list": [
+       {
+       }
+     ],
+     "variable_list": [
+       {
+       }
+     ],
+     "deployment_list": [
+       {
+       }
+     ]
+   },
+   "app_name": "PostGresDB01 Database Clone"
+ }
+}
+"@ 
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BPuuid)/simple_launch"
+  if ($debug -ge 2){
+    $Json | out-file c:\temp\bplaunch.json
+  }
+
+  write-log -message "Executing Launch for $BPuuid"
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+Function REST-Generic-BluePrint-Launch {
+  Param (
+    [object] $datagen,
+    [string] $BPuuid,
+    [object] $taskobject,
+    [object] $datavar,
+    [string] $appname
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Replacing JSON String Variables"
+$Json = @"
+{
+ "spec": {
+   "app_profile_reference": {
+     "kind": "app_profile",
+     "name": "$($taskobject.name)",
+     "uuid": "$($taskobject.uuid)"
+   },
+   "runtime_editables": {
+     "action_list": [
+       {
+       }
+     ],
+     "service_list": [
+       {
+       }
+     ],
+     "credential_list": [
+       {
+       }
+     ],
+     "substrate_list": [
+       {
+       }
+     ],
+     "package_list": [
+       {
+       }
+     ],
+     "app_profile": {
+     },
+     "task_list": [
+       {
+       }
+     ],
+     "variable_list": [
+       {
+       }
+     ],
+     "deployment_list": [
+       {
+       }
+     ]
+   },
+   "app_name": "$($appname)"
+ }
+}
+"@ 
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BPuuid)/simple_launch"
+  if ($debug -ge 2){
+    $Json | out-file c:\temp\Genbplaunch.json
+  }
+
+  write-log -message "Executing Launch for $BPuuid"
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+
+Function REST-Maria-SSP-BluePrint-Launch {
+  Param (
+    [object] $datagen,
+    [string] $BPuuid,
+    [string] $taskUUID,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Replacing JSON String Variables"
+$Json = @"
+{
+ "spec": {
+   "app_profile_reference": {
+     "kind": "app_profile",
+     "name": "MariaDB01_DEV",
+     "uuid": "$taskUUID"
+   },
+   "runtime_editables": {
+     "action_list": [
+       {
+       }
+     ],
+     "service_list": [
+       {
+       }
+     ],
+     "credential_list": [
+       {
+       }
+     ],
+     "substrate_list": [
+       {
+       }
+     ],
+     "package_list": [
+       {
+       }
+     ],
+     "app_profile": {
+     },
+     "task_list": [
+       {
+       }
+     ],
+     "variable_list": [
+       {
+       }
+     ],
+     "deployment_list": [
+       {
+       }
+     ]
+   },
+   "app_name": "MariaDB01 Database Clone"
+ }
+}
+"@ 
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BPuuid)/simple_launch"
+  if ($debug -ge 2){
+    $Json | out-file c:\temp\bplaunch.json
+  }
+
+  write-log -message "Executing Launch for $BPuuid"
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "post" -body $Json -ContentType 'application/json' -headers $headers;
+  }
+
+  Return $task
+} 
+Function REST-ERA-CreateSnapshot {
+  Param (
+    [string] $DBUUID,
+    [object] $datagen,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+  $json = @"
+{
+  "actionHeader": [{
+    "name": "snapshotName",
+    "value": "Dev_Start"
+  }]
+}
+"@
+
+  $URL = "https://$($datagen.ERA1IP):8443/era/v0.8/tms/$($DBUUID)/snapshots"
+
+  write-log -message "Creating Snapshot for $DBUUID"
+  write-log -message "Using URL $URL"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "POST" -body $json -ContentType 'application/json' -headers $headers
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "POST" -body $json -ContentType 'application/json' -headers $headers
+    Return $RespErr
+  }
+
+  Return $task
+} 
+
+Function REST-Update-Splunk-Blueprint {
+  Param (
+    [object] $BPObject,
+    [object] $Subnet,
+    [object] $image,
+    [string] $BlueprintUUID,
+    [object] $datagen,
+    [string] $ProjectUUID,
+    [object] $datavar,
+    [string] $SERVER_NAME
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+  foreach ($line in $datagen.PrivateKey){
+    [string]$Keystring += $line + "`n" 
+  }
+  $Keystring = $Keystring.Substring(0,$Keystring.Length-1)
+  $newBPObject = $BPObject
+  if ($datavar.debug -eq 2){
+    $json = $newBPObject| convertto-json -depth 100
+    $json | out-file "C:\temp\Splunk1.json"
+  }
+  $newBPObject.psobject.members.remove("Status")
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "SPLUNK_ADMIN_PASSWORD"}) | add-member noteproperty value $datavar.pepass -force
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "SPLUNK_ADMIN_PASSWORD"}).attrs.is_secret_modified = 'true'
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "SPLUNK_LICENSE"}) | add-member noteproperty value "123" -force
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "SPLUNK_ADMIN_PASSWORD"}).attrs.is_secret_modified = 'true'
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "INSTANCE_PUBLIC_KEY"}).value = $datagen.publickey
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "SERVER_NAME"}).value = "$($SERVER_NAME)"
+  $newBPObject.spec.resources.substrate_definition_list.create_spec.resources.nic_list.subnet_reference.uuid = $subnet.metadata.uuid
+  $newBPObject.spec.resources.substrate_definition_list.create_spec.resources.nic_list.subnet_reference.name = $subnet.spec.name
+  (($newBPObject.spec.resources.substrate_definition_list)[0].create_spec.resources.disk_list.data_source_reference)[0] | add-member noteproperty uuid $image.metadata.uuid -force
+  $newBPObject.metadata.project_reference.uuid = $ProjectUUID
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "Splunk_VM"}).secret | add-member noteproperty value $Keystring -force
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "Splunk_VM"}).secret.attrs.is_secret_modified = 'true'
+
+  $json = $newBPObject | convertto-json -depth 100
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BlueprintUUID)"
+
+  if ($datavar.debug -eq 2){
+    $json | out-file "C:\temp\Splunk2.json"
+  }
+  write-log -message "Updating Import with Creds for $BlueprintUUID"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+    Return $RespErr
+  }
+
+  Return $task
+} 
+
+Function REST-Update-HasiCorp-Blueprint {
+  Param (
+    [object] $BPObject,
+    [object] $Subnet,
+    [object] $image,
+    [string] $BlueprintUUID,
+    [object] $datagen,
+    [string] $ProjectUUID,
+    [object] $datavar,
+    [string] $SERVER_NAME
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+  foreach ($line in $datagen.PrivateKey){
+    [string]$Keystring += $line + "`n" 
+  }
+  $Keystring = $Keystring.Substring(0,$Keystring.Length-1)
+  $newBPObject = $BPObject
+  if ($datavar.debug -eq 2){
+    $json = $newBPObject| convertto-json -depth 100
+    $json | out-file "C:\temp\Splunk1.json"
+  }
+  $newBPObject.psobject.members.remove("Status")
+
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "INSTANCE_PUBLIC_KEY"}).value = $datagen.publickey
+  ($newBPObject.spec.resources.substrate_definition_list)[0].create_spec.resources.nic_list.subnet_reference.uuid = $subnet.metadata.uuid
+  ($newBPObject.spec.resources.substrate_definition_list)[0].create_spec.resources.nic_list.subnet_reference.name = $subnet.spec.name
+  ($newBPObject.spec.resources.substrate_definition_list)[1].create_spec.resources.nic_list.subnet_reference.uuid = $subnet.metadata.uuid
+  ($newBPObject.spec.resources.substrate_definition_list)[1].create_spec.resources.nic_list.subnet_reference.name = $subnet.spec.name
+  #($newBPObject.spec.resources.substrate_definition_list)[0].create_spec.resources.disk_list.data_source_reference | add-member noteproperty uuid $image.metadata.uuid -force
+  #($newBPObject.spec.resources.substrate_definition_list)[0].create_spec.resources.disk_list.data_source_reference | add-member noteproperty name $image.spec.name -force
+  #($newBPObject.spec.resources.substrate_definition_list)[1].create_spec.resources.disk_list.data_source_reference | add-member noteproperty uuid $image.metadata.uuid -force
+  #($newBPObject.spec.resources.substrate_definition_list)[1].create_spec.resources.disk_list.data_source_reference | add-member noteproperty name $image.spec.name -force
+  $newBPObject.metadata.project_reference.uuid = $ProjectUUID
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "CentOS_Key"}).secret | add-member noteproperty value $Keystring -force
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "CentOS_Key"}).secret.attrs.is_secret_modified = 'true'
+
+  $json = $newBPObject | convertto-json -depth 100
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BlueprintUUID)"
+
+  if ($datavar.debug -eq 2){
+    $json | out-file "C:\temp\Splunk2.json"
+  }
+  write-log -message "Updating Import with Creds for $BlueprintUUID"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+    Return $RespErr
+  }
+
+  Return $task
+} 
+
+Function REST-Update-Win3Tier-Blueprint {
+  Param (
+    [object] $BPObject,
+    [object] $Subnet,
+    [object] $image,
+    [string] $BlueprintUUID,
+    [object] $datagen,
+    [string] $ProjectUUID,
+    [object] $datavar
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+  $newBPObject = $BPObject
+  $newBPObject.psobject.members.remove("Status")
+
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "DbPassword"}) | add-member noteproperty value $datavar.pepass -force
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "DbPassword"}).attrs.is_secret_modified = 'true'
+  ($newBPObject.spec.resources.substrate_definition_list)[0].create_spec.resources.nic_list.subnet_reference.uuid = $subnet.metadata.uuid
+  ($newBPObject.spec.resources.substrate_definition_list)[0].create_spec.resources.nic_list.subnet_reference.name = $subnet.spec.name
+  ($newBPObject.spec.resources.substrate_definition_list)[1].create_spec.resources.nic_list.subnet_reference.uuid = $subnet.metadata.uuid
+  ($newBPObject.spec.resources.substrate_definition_list)[1].create_spec.resources.nic_list.subnet_reference.name = $subnet.spec.name
+  (($newBPObject.spec.resources.substrate_definition_list)[0].create_spec.resources.disk_list.data_source_reference)[0] | add-member noteproperty uuid $image.metadata.uuid -force
+  (($newBPObject.spec.resources.substrate_definition_list)[0].create_spec.resources.disk_list.data_source_reference)[1] | add-member noteproperty uuid ($newBPObject.spec.resources.package_definition_list | where {$_.name -eq "MSSQL2014_ISO"}).uuid -force
+  (($newBPObject.spec.resources.substrate_definition_list)[1].create_spec.resources.disk_list.data_source_reference)[0] | add-member noteproperty uuid $image.metadata.uuid -force
+  $newBPObject.metadata.project_reference.uuid = $ProjectUUID
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "WIN_VM_CRED"}).secret | add-member noteproperty value $datavar.pepass -force
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "WIN_VM_CRED"}).secret.attrs.is_secret_modified = 'true'
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "SQL_CRED"}).secret | add-member noteproperty value $datavar.pepass -force
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "SQL_CRED"}).secret.attrs.is_secret_modified = 'true'
+
+  $json = $newBPObject | convertto-json -depth 100
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BlueprintUUID)"
+
+  if ($datavar.debug -eq 2){
+    $json | out-file "C:\temp\Splunk2.json"
+  }
+  write-log -message "Updating Import with Creds for $BlueprintUUID"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+    Return $RespErr
+  }
+
+  Return $task
+} 
+
+Function REST-Update-ERA-SSP-Blueprint {
+  Param (
+    [object] $BPObject,
+    [string] $BlueprintUUID,
+    [object] $datagen,
+    [string] $ProjectUUID,
+    [object] $datavar,
+    [string] $dbname,
+    [string] $snapID
+  )
+
+  $credPair = "$($datavar.PEadmin):$($datavar.PEPass)"
+  $encodedCredentials = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($credPair))
+  $headers = @{ Authorization = "Basic $encodedCredentials" }
+
+  write-log -message "Loading Json"
+  foreach ($line in $datagen.PrivateKey){
+    [string]$Keystring += $line + "`n" 
+  }
+  $Keystring = $Keystring.Substring(0,$Keystring.Length-1)
+  $newBPObject = $BPObject
+  if ($datavar.debug -eq 2){
+    $json = $newBPObject| convertto-json -depth 100
+    $json | out-file "C:\temp\ERAClone1.json"
+  }
+  $newBPObject.psobject.members.remove("Status")
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "cloned_db_password"}) | add-member noteproperty value $datavar.pepass -force
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "cloned_db_password"}).attrs.is_secret_modified = 'true'
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "era_ip"}).value = $datagen.ERA1IP
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "cloned_db_public_key"}).value = $datagen.publickey
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "source_db_name"}).value = "$($dbname)"
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "source_snapshot_id"}).value = ""
+  ($newBPObject.spec.resources.app_profile_list.variable_list | where {$_.name -eq "cloned_db_name"}).value = "$($dbname)_DEV"
+  $newBPObject.metadata.project_reference.uuid = $ProjectUUID
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "db_server_creds"}).secret | add-member noteproperty value $Keystring -force
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "db_server_creds"}).secret.attrs.is_secret_modified = 'true'
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "era_creds"}).secret | add-member noteproperty value $datavar.pepass -force
+  ($newBPObject.spec.resources.credential_definition_list | where {$_.name -eq "era_creds"}).secret.attrs.is_secret_modified = 'true'
+
+  $json = $newBPObject | convertto-json -depth 100
+
+  $URL = "https://$($datagen.PCClusterIP):9440/api/nutanix/v3/blueprints/$($BlueprintUUID)"
+
+  if ($datavar.debug -eq 2){
+    $json | out-file "C:\temp\ERAClone2.json"
+  }
+  write-log -message "Updating Import with Creds for $BlueprintUUID"
+
+  try{
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+  } catch {
+    sleep 10
+
+    write-log -message "Going once"
+
+    $task = Invoke-RestMethod -Uri $URL -method "PUT" -body $json -ContentType 'application/json' -headers $headers
+    Return $RespErr
+  }
+
+  Return $task
+} 
+
+
+
 Function REST-Move-BluePrint-Launch1 {
   Param (
     [object] $datagen,
@@ -3539,7 +4282,7 @@ Function REST-ERA-AttachPENetwork {
 
     write-log -message "Going once"
 
-    sleep 60
+    sleep 119
     $task = Invoke-RestMethod -Uri $URL -method "POST" -body $JSON -ContentType 'application/json' -headers $headers; 
   }  
   Return $task

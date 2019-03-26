@@ -6,10 +6,11 @@ Function CMD-Create-VM {
     [string] $VMname,
     [string] $VMip,
     [string] $VMgw,
-    [string] $ImageName,
+    [array]  $ImageNames,
     [string] $DNSServer1,
     [string] $DNSServer2,
     [decimal] $CPU = 4,
+    [decimal] $cores = 1,
     [decimal] $RAM = 16,
     [decimal] $DiskSizeGB = 80,
     [string] $Sysprep,
@@ -90,66 +91,71 @@ runcmd:
 "@
 
     write-log -message "Done setting up network";
-    if ($ImageName -notmatch "ISO"){
-      write-log -message "Setting up cloned disk";
-    
-      $vmDisk = New-NTNXObject -Name VMDiskDTO;
-      $diskCloneSpec = New-NTNXObject -Name VMDiskSpecCloneDTO;
-      $diskImage = (Get-NTNXImage | ?{$_.name -eq $ImageName});
-      if($diskImage){;
-        if($diskImage.Length -gt 1){;
-          $diskToUse = $diskImage[0];
-          foreach($disk in $diskImage){;
-            if($disk.updatedTimeInUsecs -gt $diskToUse.updatedTimeInUsecs){ ;
-              $diskToUse = $disk;
+
+    $vmdisks = $null
+    foreach ($image in $ImageNames){
+      if ($image -notmatch "ISO"){
+  
+        write-log -message "Setting up cloned disk";
+     
+        $vmDisk = New-NTNXObject -Name VMDiskDTO;
+        $diskCloneSpec = New-NTNXObject -Name VMDiskSpecCloneDTO;
+        $diskImage = (Get-NTNXImage | ?{$_.name -eq $image});
+        if($diskImage){;
+          if($diskImage.Length -gt 1){;
+            $diskToUse = $diskImage[0];
+            foreach($disk in $diskImage){;
+              if($disk.updatedTimeInUsecs -gt $diskToUse.updatedTimeInUsecs){ ;
+                $diskToUse = $disk;
+              };
             };
+            $diskImage = $diskToUse;
           };
-          $diskImage = $diskToUse;
+          $diskCloneSpec.vmDiskUuid = $diskImage.vmDiskId;
+          $VMCust = new-ntnxobject -name VMCustomizationConfigDTO;
+          $vmcust.userdata = $sysprep;
+          $vmDisk.vmDiskClone = $diskCloneSpec;
+          
+          write-log -message "Disk Image Clone created.";
+        } else {;
+      
+          write-log -message "Specified Image Name: $image, does not exist in the Image Store, exiting" -sev "ERROR"
+      
         };
-        $diskCloneSpec.vmDiskUuid = $diskImage.vmDiskId;
-        $VMCust = new-ntnxobject -name VMCustomizationConfigDTO;
-        $vmcust.userdata = $sysprep;
-        $vmDisk.vmDiskClone = $diskCloneSpec;
-        write-log -message "Disk Image Clone created.";
-    
-      } else {;
-    
-        write-log -message "Specified Image Name: $ImageName, does not exist in the Image Store, exiting" -sev "ERROR"
-    
-      };
-
-    } else {
-      write-log -message "ISO Based VM";
-    
-      $vmDisk = New-NTNXObject -Name VMDiskDTO;
-      $diskCreateSpec = New-NTNXObject -Name VmDiskSpecCreateDTO
-      $diskCreateSpec.containerUuid = (Get-NTNXContainer -SearchString $DisksContainerName).containerUuid
-      $diskCreateSpec.sizeMb = $DiskSizeGB * 1024
-      $vmDisk.vmDiskCreate = $diskCreateSpec
-      $vmDisk = @($vmDisk)
-      $diskCloneSpec = New-NTNXObject -Name VMDiskSpecCloneDTO
-      $ISOImage = (Get-NTNXImage | ?{$_.name -eq $ImageName});
-      if($ISOImage){;
-        $diskCloneSpec.vmDiskUuid = $ISOImage.vmDiskId
-        $vmISODisk = New-NTNXObject -Name VMDiskDTO
-        $vmISODisk.isCdrom = $true
-        $vmISODisk.vmDiskClone = $diskCloneSpec
+  
+      } else {
+        write-log -message "ISO Based Image";
+      
+        $vmDisk = New-NTNXObject -Name VMDiskDTO;
+        $diskCreateSpec = New-NTNXObject -Name VmDiskSpecCreateDTO
+        $diskCreateSpec.containerUuid = (Get-NTNXContainer -SearchString $DisksContainerName).containerUuid
+        $diskCreateSpec.sizeMb = $DiskSizeGB * 1024
+        $vmDisk.vmDiskCreate = $diskCreateSpec
         $vmDisk = @($vmDisk)
-        $vmDisk += $vmISODisk
-
-        write-log -message "ISO clone and Disk created, diskobject contains $($vmDisk.count) objects.";
-    
-      } else {;
-    
-        write-log -message "Specified Image Name: $ImageName, does not exist in the Image Store, exiting" -sev "ERROR"
-    
+        $diskCloneSpec = New-NTNXObject -Name VMDiskSpecCloneDTO
+        $ISOImage = (Get-NTNXImage | ?{$_.name -eq $image});
+        if($ISOImage){;
+          $diskCloneSpec.vmDiskUuid = $ISOImage.vmDiskId
+          $vmISODisk = New-NTNXObject -Name VMDiskDTO
+          $vmISODisk.isCdrom = $true
+          $vmISODisk.vmDiskClone = $diskCloneSpec
+          $vmDisk = @($vmDisk)
+          $vmDisk += $vmISODisk
+  
+          write-log -message "ISO clone and Disk created, diskobject contains $($vmDisk.count) objects.";
+      
+        } else {;
+      
+          write-log -message "Specified Image Name: $image, does not exist in the Image Store, exiting" -sev "ERROR"
+      
+        };
       };
+      [array]$vmdisks += $vmDisk
     };
 
-  
     write-log -message "Creating VM";
   
-    $createJobID = New-NTNXVirtualMachine -MemoryMb $RAM -Name $VMname -NumVcpus $CPU -NumCoresPerVcpu 1 -VmNics $nicSpec -VmDisks $vmDisk -Description $Description -VmCustomizationConfig $vmcust -ea:0;
+    $createJobID = New-NTNXVirtualMachine -MemoryMb $RAM -Name $VMname -NumVcpus $CPU -NumCoresPerVcpu $cores -VmNics $nicSpec -VmDisks $vmDisks -Description $Description -VmCustomizationConfig $vmcust -ea:0;
     $count = 0;
     $count1 = 0;
     do{

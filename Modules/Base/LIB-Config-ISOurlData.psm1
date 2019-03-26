@@ -4,70 +4,82 @@ Function  LIB-Config-ISOurlData {
   )
 
   if ($region -eq "EU"){
-    $SQL2014ISO    = 
-    $XENDESKTOP    = 
-    $office2016    = 
-    $Windows2016ISO= 
-    $KarbonCentOS  = 
-    $KarbonUbuntu  = 
-    $CentOS        = 
-    $Windows2012   = 
-    $Windows10     = 
-    $windows2016   = 
-    $Move          = 
-    $VirtIOISO     = 
-    $XRAY          = 
-    $era           = 
-    $sqlSERVER     = 
+    $SQL2014ISO    = "xxxxxxxxx";
+    $XENDESKTOP    = "xxxxxxxxx";
+    $office2016    = "xxxxxxxxx";
+    $Windows2016ISO= "xxxxxxxxx";
+    $KarbonCentOS  = "xxxxxxxxx"
+    $KarbonUbuntu  = "xxxxxxxxx"
+    $CentOS        = "xxxxxxxxx"
+    $Windows2012   = "xxxxxxxxx"
+    $Windows10     = "xxxxxxxxx"
+    $windows2016   = "xxxxxxxxx"
+    $Move          = "xxxxxxxxx"
+    $VirtIOISO     = "xxxxxxxxx"
+    $XRAY          = "xxxxxxxxx"  
+    $era           = "xxxxxxxxx"
+    $sqlSERVER     = "xxxxxxxxx"
+    $oracle1_0     = "xxxxxxxxx"
+    $oracle1_1     = "xxxxxxxxx"
+    $oracle1_2     = "xxxxxxxxx"
 
   } elseif ($region -eq "Backup"){
-    #$SQL2014ISO    =
-    #$XENDESKTOP    =
-    #$office2016    =
-    #$Windows2016ISO=
-    $KarbonCentOS  = 
-    $CentOS        = 
-    $KarbonUbuntu  = 
-    $Windows2012   = 
-    #$Windows10     =
-    #$windows2016   =
-    $Move          = 
-    $VirtIOISO     = 
-    $XRAY          = 
-    $era           = 
-    $sqlSERVER     = 
+    #$SQL2014ISO    = "xxxxxxxxx";
+    #$XENDESKTOP    = ""xxxxxxxxx";
+    #$office2016    = "xxxxxxxxx";
+    #$Windows2016ISO= "xxxxxxxxx";
+    $KarbonCentOS  = "xxxxxxxxx"
+    $CentOS        = "xxxxxxxxx"
+    $KarbonUbuntu  = "xxxxxxxxx"
+    $Windows2012   = "xxxxxxxxx"
+    #$Windows10     = "xxxxxxxxx"
+    #$windows2016   = "xxxxxxxxx"
+    $Move          = "xxxxxxxxx"
+    $VirtIOISO     = "xxxxxxxxx"
+    $XRAY          = "xxxxxxxxx"
+    $era           = "xxxxxxxxx"
+    $sqlSERVER     = "xxxxxxxxx"
+    $oracle1_0     = "xxxxxxxxx"
+    $oracle1_1     = "xxxxxxxxx"
+    $oracle1_2     = "xxxxxxxxx"  
   } elseif ($region -eq "Backup2"){
-    $SQL2014ISO    = 
-    $XENDESKTOP    = 
-    $office2016    = 
-    $Windows2016ISO= 
-    $KarbonCentOS  = 
-    $CentOS        = 
-    $KarbonUbuntu  = 
-    $Windows2012   = 
-    $Windows10     = 
-    $windows2016   = 
-    $Move          = 
-    $VirtIOISO     = 
-    $XRAY          = 
-    $era           = 
-    $sqlSERVER     = 
+    $SQL2014ISO    = "xxxxxxxxx";
+    $XENDESKTOP    = "xxxxxxxxx";
+    $office2016    = "xxxxxxxxx";
+    $Windows2016ISO= "xxxxxxxxx";
+    $KarbonCentOS  = "xxxxxxxxx"
+    $CentOS        = "xxxxxxxxx"
+    $KarbonUbuntu  = "xxxxxxxxx"
+    $Windows2012   = "xxxxxxxxx"
+    $Windows10     = "xxxxxxxxx"
+    $windows2016   = "xxxxxxxxx"
+    $Move          = "xxxxxxxxx"
+    $VirtIOISO     = "xxxxxxxxx"
+    $XRAY          = "xxxxxxxxx"
+    $era           = "xxxxxxxxx"
+    $sqlSERVER     = "xxxxxxxxx" 
+    $oracle1_0     = "xxxxxxxxx"
+    $oracle1_1     = "xxxxxxxxx"
+    $oracle1_2     = "xxxxxxxxx"  
   }else {
-    $SQL2014ISO    = 
-    $XENDESKTOP    = 
-    $office2016    = 
-    $Windows2016ISO= 
-    $KarbonCentOS  = 
-    $CentOS        = 
-    $KarbonUbuntu  = 
-    $Windows2012   = 
-    $Windows10     = 
-    $windows2016   = 
-    $VirtIOISO     = 
-    $Move          = 
-    $XRAY          = 
-    $era           = 
-    $sqlSERVER     = 
+    $SQL2014ISO    = #"xxxxxxxxx";
+    $XENDESKTOP    = "xxxxxxxxx";
+    $office2016    = #"xxxxxxxxx";
+    $Windows2016ISO= "xxxxxxxxx";
+    $KarbonCentOS  = "xxxxxxxxx"
+    $CentOS        = "xxxxxxxxx"
+    $KarbonUbuntu  = "xxxxxxxxx"
+    $Windows2012   = "xxxxxxxxx"
+    $Windows10     = "xxxxxxxxx"
+    $windows2016   = "xxxxxxxxx"
+    $VirtIOISO     = "xxxxxxxxx"
+    $Move          = "xxxxxxxxx"
+    $XRAY          = "xxxxxxxxx"
+    $era           = "xxxxxxxxx"
+    $sqlSERVER     = "xxxxxxxxx"
+    $oracle1_0     = "xxxxxxxxx"
+    $oracle1_1     = "xxxxxxxxx"
+    $oracle1_2     = "xxxxxxxxx" 
   }
   $Object = New-Object PSObject;
   $Object | add-member Noteproperty Windows2016ISO      $Windows2016ISO; 
@@ -84,5 +96,8 @@ Function  LIB-Config-ISOurlData {
   $Object | add-member Noteproperty X-Ray               $xray;
   $Object | add-member Noteproperty ERA                 $Era;
   $Object | add-member Noteproperty 'MSSQL-2016-VM'     $sqlSERVER;
+  $Object | add-member Noteproperty Oracle_1_0          $oracle1_0;
+  $Object | add-member Noteproperty Oracle_1_1          $oracle1_1;
+  $Object | add-member Noteproperty Oracle_1_2          $oracle1_2;
   return $object;
 };

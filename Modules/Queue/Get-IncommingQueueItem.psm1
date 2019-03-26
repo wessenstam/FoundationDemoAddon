@@ -10,7 +10,7 @@ Function Get-IncommingueueItem{
   ## Version 2.0
   $item = $null
   write-host "$(get-date -format "hh:mm:ss") | INFO  | Terminating leftover outlook."
-  get-process outlook | stop-process -ea:0
+  get-process outlook -ea:0 | stop-process -ea:0
   write-host "$(get-date -format "hh:mm:ss") | INFO  | Applying Outlook Settings."
   reg import "C:\HostedPocProvisioningService\Binaries\Outlook.reg"
   write-host "$(get-date -format "hh:mm:ss") | INFO  | Starting outlook."
@@ -20,7 +20,7 @@ Function Get-IncommingueueItem{
   $outlook = new-object -comobject outlook.application 
   $namespace = $outlook.GetNameSpace("MAPI") 
   write-host "$(get-date -format "hh:mm:ss") | INFO  | COMS started, locating folders."
-  $folders = $namespace.Folders.item(2).folders
+  $folders = $namespace.Folders.item(3).folders
   $folder = $folders | where {$_.FolderPath -eq "\\michell.grauwmans@nutanix.com\Foundation"}
   write-host "$(get-date -format "hh:mm:ss") | INFO  | Mailbox loaded checking items."
   $PCmode                = "3 Node" ### TODO 
@@ -35,6 +35,9 @@ Function Get-IncommingueueItem{
     $InstallKarbon = 1
     $DemoIISXPlay = 1
     $InstallFiles = 1
+    $InstallSplunk = 1
+    $InstallHashiVault = 1
+    $Install3TierWin = 1
     $slackbot = 0
     $SetupSSP = 1
     $Move = 1
@@ -118,6 +121,15 @@ Function Get-IncommingueueItem{
       if ($line -match "^move:[0-9]"){
         $move = $line -replace("^move:([0-9]).*", '$1')
       }
+      if ($line -match "^Splunk:[0-9]"){
+        $InstallSplunk = $line -replace("^Splunk:([0-9]).*", '$1')
+      }
+      if ($line -match "^HcV:[0-9]"){
+        $InstallHashiVault = $line -replace("^HcV:([0-9]).*", '$1')
+      }
+      if ($line -match "^3TWin:[0-9]"){
+        $Install3TierWin  = $line -replace("^3TWin:([0-9]).*", '$1')
+      }
       if ($line -match "^pcversion:"){
         $DemoLab = $line.split(":")[1];
       } else {
@@ -183,6 +195,9 @@ Function Get-IncommingueueItem{
     $object | add-member Noteproperty InstallKarbon       $InstallKarbon;
     $object | add-member Noteproperty DemoIISXPlay        $DemoIISXPlay;
     $object | add-member Noteproperty InstallFiles        $InstallFiles;
+    $object | add-member Noteproperty InstallSplunk       $InstallSplunk
+    $object | add-member Noteproperty InstallHashiVault   $InstallHashiVault
+    $object | add-member Noteproperty Install3TierWin     $Install3TierWin
     $object | add-member Noteproperty slackbot            $slackbot;
     $object | add-member Noteproperty move                $move;
     $object | add-member Noteproperty UUID                $Guid.Guid;

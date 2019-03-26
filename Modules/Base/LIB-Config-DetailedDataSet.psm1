@@ -12,6 +12,9 @@ Function LIB-Config-DetailedDataSet {
   $KarbonContainerName= "Karbon_01"
   $DC_ImageName       = "Windows 2012";
   $MoveImageName      = "Move";
+  $oracle1_0Image     = "Oracle_1_0"
+  $oracle1_1Image     = "Oracle_1_1"
+  $oracle1_2Image     = "Oracle_1_2"
   $MSSQLImage         = "MSSQL-2016-VM"
   $ERA_ImageName      = "ERA";
   $SysprepPassword    = "Maandag01";
@@ -48,8 +51,8 @@ Function LIB-Config-DetailedDataSet {
   $FS1extIPoctetend    = $startingIP + 16;
   $MSSQLIPoctet        = $startingIP + 17;
   $MOVEIPoctet         = $startingIP + 29;
-  $DHCPNW1Octetstart   = $startingIP + 30;
-  $DHCPNW1Octetstart   = $startingIP + 30;
+  $DHCPNW1Octetstart   = $startingIP + 31;
+  $OracleIPOctet       = $startingIP + 30;
   $Karbonoctetstart    = $startingIP + 18;
   $Karbonoctetend      = $startingIP + 28;
   $FS1_IntName = "FS1I-$($datavar.POCname)";
@@ -61,6 +64,7 @@ Function LIB-Config-DetailedDataSet {
   $MoveName= "Move1-$($datavar.POCname)";
   $MSSQL1  = "MSSQL1-$($datavar.POCname)";
   $SRVMaria= "Maria1-$($datavar.POCname)";
+  $SRVOracl= "Oracle1-$($datavar.POCname)";
   $PostGres= "PostG1-$($datavar.POCname)";
   $DC1Name = "DC1-$($datavar.POCname)";
   $DC2Name = "DC2-$($datavar.POCname)";
@@ -73,6 +77,7 @@ Function LIB-Config-DetailedDataSet {
   [string]$ERA1IP     = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $ERA1IPoctet
   [string]$moveIP     = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $MOVEIPoctet
   [string]$MSSQLIP    = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $MSSQLIPoctet
+  [string]$OracleIP   = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $OracleIPOctet
   [string]$DC1IP      = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $DC1IPoctet
   [string]$DC2IP      = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $DC2IPoctet
   [string]$FS1IntIPst = $mask[0] + '.' + $mask[1] + '.' + $mask[2] + '.' + $FS1IntIPoctetstart
@@ -115,6 +120,11 @@ Function LIB-Config-DetailedDataSet {
   $Object | add-member Noteproperty ERA_MariaName       $SRVMaria;
   $Object | add-member Noteproperty ERA_PostGName       $PostGres;
   $Object | add-member Noteproperty EraContainerName    $EraContainerName;
+  $Object | add-member Noteproperty Oracle1_0Image      $oracle1_0Image  
+  $Object | add-member Noteproperty Oracle1_1Image      $oracle1_1Image  
+  $Object | add-member Noteproperty Oracle1_2Image      $oracle1_2Image 
+  $Object | add-member Noteproperty OracleIP            $OracleIP
+  $Object | add-member Noteproperty Oracle_VMName       $SRVOracl
   $Object | add-member Noteproperty KarbonContainerName $KarbonContainerName;
   $Object | add-member Noteproperty KarbonIPRange       $karbonrange;
   $Object | add-member Noteproperty SysprepPassword     $SysprepPassword;

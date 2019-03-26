@@ -21,6 +21,18 @@ Function SSH-ResetPass-Px {
   } elseif ($mode -eq "ERA" ){
     $sshusername = "era" 
     $oldSecurepass = ConvertTo-SecureString "Nutanix.1" -AsPlainText -Force;
+  } elseif ($mode -eq "Oracle1" ){
+    $sshusername = "oracle" 
+    $oldSecurepass = ConvertTo-SecureString "welcome1" -AsPlainText -Force;
+  } elseif ($mode -eq "Oracle2" ){
+    $sshusername = "root" 
+    $oldSecurepass = ConvertTo-SecureString "welcome1" -AsPlainText -Force;
+  } elseif ($mode -eq "Oracle3" ){
+    $sshusername = "grid" 
+    $oldSecurepass = ConvertTo-SecureString "welcome1" -AsPlainText -Force;
+  } elseif ($mode -eq "Oracle4" ){
+    $sshusername = "kamal" 
+    $oldSecurepass = ConvertTo-SecureString "welcome1" -AsPlainText -Force;
   } else {
     $sshusername = "nutanix"
     $oldSecurepass = ConvertTo-SecureString "nutanix/4u" -AsPlainText -Force; 
@@ -99,15 +111,16 @@ Function SSH-ResetPass-Px {
         $session = New-SSHSession -ComputerName $PxClusterIP -Credential $credential -AcceptKey -ea:0;  
         $Passresetresult = Invoke-SSHCommand -SSHSession $session -command "echo `"$($clpassword)`" | sudo passwd --stdin $sshusername"
         $hide = Get-sshsession | Remove-SSHSession
+        if ($mode -notmatch "Oracle"){
 
-        write-log -message "Sleeping 1 minute"
-
+          write-log -message "Sleeping 1 minute"
+  
+          sleep 60
+        }
         $passreset = $true
-        sleep 60
-
       }
       
-      if ($mode -ne "ERA"){
+      if ($mode -notmatch "ERA|Oracle"){
         $passreset = $false
 
         write-log -message "Resetting Prism Portal Password";

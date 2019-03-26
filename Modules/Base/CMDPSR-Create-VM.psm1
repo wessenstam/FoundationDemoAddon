@@ -245,7 +245,7 @@ Function CMDPSR-Create-VM {
   
     write-log -message "Waiting for sysprep to finish";
   
-    sleep 70;
+    sleep 90;
     $oldIPtest = test-connection -computername $ip -ea:0;
     if ($oldIPtest[0].statuscode -eq 0){;
   
@@ -261,9 +261,9 @@ Function CMDPSR-Create-VM {
         } -Args $VMip,$VMgw,$subnetprefix,$VMname -asjob;
       }
 
-      write-log -message "Sleeping 60 after command execution.";
+      write-log -message "Sleeping after command execution.";
   
-      sleep 60;
+      sleep 110;
     } else {;
   
       write-log -message "Cannot Reach VM on its first IP Something is wrong. This message will self distruct in 5 seconds." -sev "WARN";

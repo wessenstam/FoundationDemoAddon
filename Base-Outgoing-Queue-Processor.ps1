@@ -58,7 +58,7 @@ Import-Module "$($ModuleDir)\Lib-Generate-SSHKey.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Send-Confirmation.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Server-SysprepXML.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Spawn-Wrapper.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\LIB-REST-Tools" -DisableNameChecking;
+Import-Module "$($ModuleDir)\LIB-REST-Tools.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Test-ClusterPrereq.psm1"  -DisableNameChecking;
 Import-Module "$($ModuleDir)\LIB-Write-Log.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\PSR-Add-DomainController.psm1" -DisableNameChecking;
@@ -81,11 +81,18 @@ Import-Module "$($ModuleDir)\SSH-Unlock-XPlay.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-ResetPass-Px.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-RoleMapping-Px.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-Networking-Pe.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\SSH-Startup-Oracle.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\SSH-Oracle-InsertDemo.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\SSH-Storage-Pe.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Install-PC.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Create-SSP-Groups-Projects.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Import-XPlay-Demo.psm1" -DisableNameChecking;
-Import-Module "$($ModuleDir)\Wrap-Install-Era.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Wrap-Install-Era-Base.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Wrap-Install-Era-MSSQL.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Wrap-Install-Era-Oracle.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Wrap-Install-Splunk.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Wrap-Install-HashiCorpVault.psm1" -DisableNameChecking;
+Import-Module "$($ModuleDir)\Wrap-Install-3TierWin.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Post-PC.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Install-Second-DC.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Update-PC-REST.psm1" -DisableNameChecking;
@@ -93,6 +100,7 @@ Import-Module "$($ModuleDir)\Wrap-Create-ADForest-PC.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Create-KarbonCluster.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Slack-Log.psm1" -DisableNameChecking;
 Import-Module "$($ModuleDir)\Wrap-Import-Move-Demo.psm1" -DisableNameChecking;
+
 
 #-----End Loader-----
 
@@ -141,7 +149,7 @@ do {
     ### Full Data Set
     $data = LIB-Config-DetailedDataSet -datavar $datavar -basedir $basedir
     $data.syspreppassword = $datavar.PEPass
-    $datagen = $data
+
 
     
     write-log -message "Working with Dynamic dataset:" -sev "CHAPTER"
@@ -150,7 +158,7 @@ do {
     
     write-log -message "Working with Generated dataset:" -sev "CHAPTER"
     
-    $datagen | fl
+    $data | fl
    
 
     if ($datavar.slackbot -ge 1){
@@ -270,7 +278,7 @@ do {
 
       write-log -message "Creating First DC VM" -sev "CHAPTER"
 
-      $VM1 = CMDPSR-Create-VM -mode "FixedIP" -DisksContainerName $data.DiskContainerName -Subnetmask $datavar.InfraSubnetmask -Sysprepfile $ServerSysprepfile -Networkname $data.Nw1Name -VMname $data.DC1Name -ImageName $data.DC_ImageName -cpu 4 -ram 8192 -VMip $data.DC1IP -VMgw $datavar.InfraGateway -DNSServer1 $data.DC1IP -DNSServer2 $data.DC2IP -SysprepPassword $data.SysprepPassword -debug $datavar.debug -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass
+      $VM1 = CMDPSR-Create-VM -mode "FixedIP" -DisksContainerName $data.DiskContainerName -Subnetmask $datavar.InfraSubnetmask -Sysprepfile $ServerSysprepfile -Networkname $data.Nw1Name -VMname $data.DC1Name -ImageName $data.DC_ImageName -cpu 4 -ram 4096 -VMip $data.DC1IP -VMgw $datavar.InfraGateway -DNSServer1 $data.DC1IP -DNSServer2 $data.DC2IP -SysprepPassword $data.SysprepPassword -debug $datavar.debug -PEClusterIP $datavar.PEClusterIP -clusername $datavar.PEAdmin -clpassword $datavar.PEPass
 
       write-log -message "Spawning Create Forest" -sev "CHAPTER"
 
@@ -299,11 +307,22 @@ do {
 
         write-log -message "Spawning ERA Install" -sev "CHAPTER"
 
-        $LauchCommand = 'sleep 60;Wrap-Install-Era -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile'
-        Lib-Spawn-Wrapper -Type "ERA" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Install-Era.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
+        $LauchCommand = 'sleep 60;Wrap-Install-Era-Base -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile -basedir $basedir'
+        Lib-Spawn-Wrapper -Type "ERA_Base" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Install-Era-Base.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
 
       } 
-      
+      if ($datavar.DemoLab -eq 1){
+ 
+        write-log -message "Installing Workshop Lab Settings Prism Element" -sev "CHAPTER"
+       
+        REST-WorkShopConfig-Px -ClusterPx_IP $datavar.PEClusterIP -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -POCName $datavar.POCname -VERSION $datavar.PCVersion -Mode "PE"
+
+      } 
+      write-log -message "Uploading ISO Images" -sev "CHAPTER"
+
+      $STATUS = CMD-Upload-ISOImages -ISOurlDataPrimair $ISOurlData1 -ISOurlDataBackup $ISOurlData2 -debug $datavar.debug -peadmin $datavar.PEAdmin -pepass $datavar.PEPass -PEClusterIP $datavar.PEClusterIP -ContainerName $data.ImagesContainerName -dcimage $data.DC_ImageName
+      Lib-Check-Thread -status $status.result -stage "Uploading ISO Images" -lockfile $lockfile -SingleModelck $SingleModelck -SenderEMail $datavar.SenderEMail -logfile $logfile -debug $datavar.debug
+
       write-log -message "Running PC Installer Wrapper for Stage 2" -sev "CHAPTER"
 
       Wrap-Install-PC -datafixed $data -datavar $datavar -stage "2" -logfile $logfile
@@ -328,10 +347,6 @@ do {
        
         REST-WorkShopConfig-Px -ClusterPx_IP $data.PCClusterIP -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -POCName $datavar.POCname -VERSION $datavar.PCVersion -Mode "PC"
 
-        write-log -message "Installing Workshop Lab Settings Prism Element" -sev "CHAPTER"
-       
-        REST-WorkShopConfig-Px -ClusterPx_IP $datavar.PEClusterIP -clpassword $datavar.PEPass -clusername $datavar.PEAdmin -POCName $datavar.POCname -VERSION $datavar.AOSVersion -Mode "PE"
-
       } 
       if ($datavar.DemoXenDeskT -eq 1 -or $datavar.InstallFiles -eq 1){
         if ($datavar.SystemModel -notmatch "^SX"){
@@ -351,10 +366,21 @@ do {
         write-log -message "Not implemented"    
       
       }
+
+      if ($datavar.InstallMove -eq 1){
+
+        write-log -message "Installing Move" -sev "CHAPTER"
+        $LauchCommand = 'Wrap-Import-Move-Demo -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile -BlueprintsPath ' + $BlueprintsPath
+        Lib-Spawn-Wrapper -Type "Move" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Import-Move-Demo.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
+        sleep 10
+        write-log -message "Spawning Karbon Cluster" -sev "CHAPTER"
+        
+      }
+
       if ($datavar.InstallKarbon -eq 1){
 
         write-log -message "Installing Karbon" -sev "CHAPTER"
-        $LauchCommand = 'Wrap-Create-KarbonCluster -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile'
+        $LauchCommand = 'Wrap-Create-KarbonCluster -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile -BlueprintsPath ' + $BlueprintsPath
         Lib-Spawn-Wrapper -Type "Karbon" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Create-KarbonCluster.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
         sleep 10
         write-log -message "Spawning Karbon Cluster" -sev "CHAPTER"
@@ -368,7 +394,30 @@ do {
         $demo = Wrap-Import-XPlay-Demo -datagen $data -datavar $datavar -BlueprintsPath $BlueprintsPath -basedir $basedir -debug $datavar.debug
 
       }
+      if ($datavar.InstallSplunk -eq 1){
 
+        write-log -message "Spawning Splunk Install" -sev "CHAPTER"
+
+        $LauchCommand = 'Wrap-Install-Splunk -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile -basedir $basedir -BlueprintsPath ' + $BlueprintsPath
+        Lib-Spawn-Wrapper -Type "Splunk" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Install-Splunk.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
+
+      } 
+      if ($datavar.InstallHashiVault -eq 1){
+
+        write-log -message "Spawning HashiCorpVault Install" -sev "CHAPTER"
+
+        $LauchCommand = 'Wrap-Install-HashiCorpVault -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile -basedir $basedir -BlueprintsPath ' + $BlueprintsPath
+        Lib-Spawn-Wrapper -Type "HashiCorpVault" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Install-3TierWin.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
+
+      } 
+      if ($datavar.Install3TierWin -eq 1){
+
+        write-log -message "Spawning 3TierWin Install" -sev "CHAPTER"
+
+        $LauchCommand = 'Wrap-Install-3TierWin -datagen $datagen -datavar $datavar -ServerSysprepfile $ServerSysprepfile -basedir $basedir -BlueprintsPath ' + $BlueprintsPath
+        Lib-Spawn-Wrapper -Type "3TierWin" -datavar $datavar -datagen $data -parentuuid "$($datavar.UUID)" -sysprepfile $sysprepfile -ModuleDir $ModuleDir -basedir $basedir -ProdMode $ProdMode -psm1file "$($ModuleDir)\Wrap-Install-3TierWin.psm1" -LauchCommand $LauchCommand -debug $datavar.debug
+
+      } 
       write-log -message "Getting results from spawned demos" -sev "CHAPTER"
 
       Lib-Get-Wrapper-Results -datavar $datavar -datagen $data -ModuleDir $ModuleDir -parentuuid "$($datavar.UUID)" -basedir $basedir -debug $datavar.debug
