@@ -231,7 +231,7 @@
 						"num_vcpus_per_socket": 1,
 						"num_sockets": 4,
 						"gpu_list": [],
-						"memory_size_mib": 8192,
+						"memory_size_mib": 2048,
 						"parent_reference": null,
 						"hardware_clock_timezone": "",
 						"guest_customization": {
@@ -962,7 +962,7 @@
 			},
 			"type": "USER"
 		},
-		"name": "IIS Customer Horizontal Scale"
+		"name": "Demo-Windows-IIS_Scaleout-Microsoft"
 	},
 	"api_version": "3.0",
 	"metadata": {

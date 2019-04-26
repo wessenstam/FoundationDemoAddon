@@ -623,7 +623,7 @@
       },
       "type": "USER"
     },
-    "name": "Nutanix Move"
+    "name": "Install-Corp-Move-Nutanix"
   },
   "api_version": "3.0",
   "metadata": {

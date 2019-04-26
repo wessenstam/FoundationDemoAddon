@@ -978,7 +978,7 @@
 					"description": "",
 					"name": "KARBON_WORKER_MEMORY",
 					"type": "LOCAL",
-					"value": "8192",
+					"value": "4096",
 					"label": "",
 					"attrs": {
 						"type": ""
@@ -1111,7 +1111,7 @@
 			},
 			"type": "USER"
 		},
-		"name": "TCS - Karbon Automated Deployment"
+		"name": "Install-Container-Karbon-Nutanix"
 	},
 	"api_version": "3.0",
 	"metadata": {
